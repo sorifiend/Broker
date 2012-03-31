@@ -68,15 +68,15 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GRAY + "{optional} [required]");
                 }
                 if (sender.hasPermission("broker.commands.buy")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy {ItemId|itemName} {price per item}");
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy");
                     sender.sendMessage(ChatColor.GRAY + " Open the broker window to buy items");
-                    sender.sendMessage(ChatColor.GRAY + " OR, specify an item to buy at the lowest current price");
-                    sender.sendMessage(ChatColor.GRAY + " OR, set a price to list your interest in buying at your price");
                 }
                 if (sender.hasPermission("broker.commands.sell")) {
                     sender.sendMessage(ChatColor.GOLD + "/broker sell {price per item}");
                     sender.sendMessage(ChatColor.GRAY + " List the item in your hand for sale");
                     sender.sendMessage(ChatColor.GRAY + " Either set a price or sell to the highest current bidder");
+                    sender.sendMessage(ChatColor.GOLD + "/broker sell cancel");
+                    sender.sendMessage(ChatColor.GRAY + " Cancel an existing sell order");
                 }
                 if (sender.hasPermission("broker.commands.query")) {
                     sender.sendMessage(ChatColor.GOLD + "/broker query [itemId|itemName]");
