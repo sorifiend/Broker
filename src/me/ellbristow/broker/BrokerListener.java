@@ -133,6 +133,9 @@ public class BrokerListener implements Listener {
                 } else if (event.isShiftClick() && event.isLeftClick()) {
                     event.setCancelled(true);
                     plugin.priceCheck.remove(player.getName());
+                } else if (slot >= 0 && slot < 54 && event.getCursor() != null) {
+                    event.setCancelled(true);
+                    plugin.priceCheck.remove(player.getName());
                 } else {
                     plugin.priceCheck.remove(player.getName());
                 }

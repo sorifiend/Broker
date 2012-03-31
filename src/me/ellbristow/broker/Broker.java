@@ -229,7 +229,7 @@ public class Broker extends JavaPlugin {
                 int rows = sellOrders.size();
                 int added = 0;
                 for (int i = 0; i < rows; i++) {
-                    if (!isDamageableItem(new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName"))))) {
+                    if (!isDamageableItem(new ItemStack(Material.getMaterial(sellOrders.get(i).get("itemName").toString())))) {
                         // All items the same (Show top 5 prices)
                         if (added < 5) {
                             ItemStack stack = new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName")));
@@ -254,7 +254,7 @@ public class Broker extends JavaPlugin {
                         // Items may vary (Show top 45 prices)
                         if (added < 45) {
                             ItemStack stack = new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName")));
-                            stack.setDurability((Short)sellOrders.get(i).get("damage"));
+                            stack.setDurability(Short.parseShort(sellOrders.get(i).get("damage").toString()));
                             if ((String)sellOrders.get(i).get("enchantments") != null && !"".equals((String)sellOrders.get(i).get("enchantments"))) {
                                 String[] enchSplit = ((String)sellOrders.get(i).get("enchantments")).split(";");
                                 for (String ench : enchSplit) {
@@ -266,7 +266,6 @@ public class Broker extends JavaPlugin {
                             inv.setItem(added, stack);
                             added++;
                         }
-                        rows++;
                     }
                     inv.setItem(45, new ItemStack(Material.BOOK));
                     if (rows > 45) {

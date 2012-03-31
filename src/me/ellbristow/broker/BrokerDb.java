@@ -130,7 +130,6 @@ public class BrokerDb {
                     numRows++;
                 }
                 results.close();
-                plugin.getLogger().info(rows.toString());
                 return rows;
             } else {
                 return null;
