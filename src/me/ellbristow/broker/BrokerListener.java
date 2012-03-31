@@ -31,7 +31,7 @@ public class BrokerListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!event.isCancelled()) {
             Inventory inv = event.getView().getTopInventory();
-            if ("<Broker>".equals(inv.getName())) {
+            if ("<Broker> Buy".equals(inv.getName())) {
                 Player player = (Player)event.getWhoClicked();
                 int slot = event.getRawSlot();
                 if (slot >= 45 && slot <54) {
@@ -41,23 +41,23 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player.getName()).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", null).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player.getName()).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", null).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player.getName()).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), null).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
                     }
-                } else if (slot >= 0 && slot < 54 && inv.getItem(slot) != null && inv.getItem(45).getType() != Material.BOOK) {
+                } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null && inv.getItem(45).getType() != Material.BOOK) {
                     // Clicked item on Main Page
                     event.setCancelled(true);
                     plugin.priceCheck.remove(player.getName());
@@ -66,10 +66,10 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player.getName()).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", null).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
-                } else if (slot >= 0 && slot < 54 && inv.getItem(slot) != null) {
+                } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
                     // Clicked item on sub-page
                     event.setCancelled(true);
                     if (!plugin.priceCheck.containsKey(player.getName())) {
@@ -139,13 +139,98 @@ public class BrokerListener implements Listener {
                 } else {
                     plugin.priceCheck.remove(player.getName());
                 }
+            } else if ("<Broker> Cancel".equals(inv.getName())) {
+                Player player = (Player)event.getWhoClicked();
+                int slot = event.getRawSlot();
+                if (slot >= 45 && slot <54) {
+                    event.setCancelled(true);
+                    // Clicked nevigation slot
+                    plugin.priceCheck.remove(player.getName());
+                    Material itemType = inv.getItem(slot).getType();
+                    if (itemType == Material.BOOK) {
+                        // Main Page
+                        inv.setContents(plugin.getBrokerInv("0", null).getContents());
+                        player.sendMessage(ChatColor.GOLD + "Main Page");
+                    } else if (itemType == Material.PAPER) {
+                        // Change Page
+                        if (inv.getItem(0).getType() != Material.BOOK) {
+                            // On Main Page
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", null).getContents());
+                            player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
+                        } else {
+                            // On Sub Page
+                            String itemName = inv.getItem(0).getType().name();
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), null).getContents());
+                            player.sendMessage(ChatColor.GOLD + itemName);
+                            player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
+                        }
+                    }
+                } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null && inv.getItem(45).getType() != Material.BOOK) {
+                    // Clicked item on Main Page
+                    event.setCancelled(true);
+                    plugin.priceCheck.remove(player.getName());
+                    Material itemType = inv.getItem(slot).getType();
+                    String itemName = itemType.name();
+                    if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
+                        itemName += ":"+inv.getItem(slot).getDurability();
+                    }
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", null).getContents());
+                    player.sendMessage(ChatColor.GOLD + itemType.name());
+                    player.sendMessage(ChatColor.GOLD + "Page 1");
+                } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
+                    // Clicked item on sub-page
+                    // Cancel Order
+                    event.setCancelled(true);
+                    ItemStack stack = inv.getItem(slot);
+                    Map<Enchantment, Integer> enchantments = stack.getEnchantments();
+                    String enchantmentString = "";
+                    if (!enchantments.isEmpty()) {
+                        enchantmentString = " AND enchantments = '";
+                        Object[] enchs = enchantments.keySet().toArray();
+                        for (Object ench : enchs) {
+                            if (!" AND enchantments = '".equals(enchantmentString)) {
+                                enchantmentString += ";";
+                            }
+                            enchantmentString += ((Enchantment)ench).getId() + "@" + enchantments.get((Enchantment)ench);
+                        }
+                        enchantmentString += "'";
+                    }
+                    HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("*","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND quant = " + stack.getAmount() + " AND price = " + getPrice(inv, slot),null,null);
+                    int orderId = (Integer)sellOrders.get(0).get("id");
+                    plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + orderId);
+                    String itemName = stack.getType().name();
+                    if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
+                        itemName += ":"+inv.getItem(slot).getDurability();
+                    }
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player.getName()).getContents());
+                    if (inv.getItem(0) == null) {
+                        inv.setContents(plugin.getBrokerInv("0", player.getName()).getContents());
+                    }
+                    player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
+                    HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
+                    if (!dropped.isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "Not all items coudl fit in your Inventory!");
+                        player.sendMessage(ChatColor.RED + "Look on the floor!");
+                        for (int i = 0; i < dropped.size(); i++) {
+                            player.getWorld().dropItem(player.getLocation(), dropped.get(i));
+                        }
+                    }
+                } else if (event.isShiftClick() && event.isLeftClick()) {
+                    event.setCancelled(true);
+                    plugin.priceCheck.remove(player.getName());
+                } else if (slot >= 0 && slot < 54 && event.getCursor() != null) {
+                    event.setCancelled(true);
+                    plugin.priceCheck.remove(player.getName());
+                } else {
+                    plugin.priceCheck.remove(player.getName());
+                }
             }
         }
     }
     
     @EventHandler (priority = EventPriority.NORMAL)
     public void onInventoryClose(InventoryCloseEvent event) {
-        if ("<Broker>".equals(event.getInventory().getName())) {
+        if (event.getInventory().getName().startsWith("<Broker>")) {
             plugin.priceCheck.remove(event.getPlayer().getName());
         }
     }
@@ -207,10 +292,10 @@ public class BrokerListener implements Listener {
                                     plugin.vault.economy.withdrawPlayer(player.getName(), totPrice);
                                     HashMap<Integer, ItemStack> drop = player.getInventory().addItem(stack);
                                     if (!drop.isEmpty()) {
+                                        player.sendMessage(ChatColor.YELLOW + "Some items did not fit in your inventory! Look on the floor!");
                                         for (int i = 0; i < drop.size(); i++) {
                                             ItemStack dropStack = drop.get(i);
                                             player.getWorld().dropItem(player.getLocation(), dropStack);
-                                            player.sendMessage(ChatColor.YELLOW + "Some items did not fit in your inventory! Look on the floor!");
                                         }
                                     }
                                     player.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + quantity + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(totPrice));

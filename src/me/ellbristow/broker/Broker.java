@@ -103,7 +103,7 @@ public class Broker extends JavaPlugin {
                     }
                     switch (args.length) {
                         case 1:
-                            player.openInventory(getBrokerInv("0", player.getName()));
+                            player.openInventory(getBrokerInv("0", null));
                             player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
                             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
                         break;
@@ -125,6 +125,11 @@ public class Broker extends JavaPlugin {
                     if (!sender.hasPermission("broker.commands.sell")) {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the sell command!");
                         return false;
+                    }
+                    if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
+                        player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
+                        player.openInventory(getBrokerInv("0", player.getName()));
+                        return true;
                     }
                     ItemStack itemInHand = player.getItemInHand();
                     if (itemInHand == null || itemInHand.getTypeId() == 0) {
@@ -201,7 +206,12 @@ public class Broker extends JavaPlugin {
     
     @SuppressWarnings("CallToThreadDumpStack")
     protected DoubleChestInventory getBrokerInv(String page, String playerName) {
-        DoubleChestInventory inv = (DoubleChestInventory)new CraftInventoryDoubleChest(new InventoryLargeChest("<Broker>", new TileEntityChest(), new TileEntityChest()));
+        DoubleChestInventory inv;
+        if (playerName == null) {
+            inv = (DoubleChestInventory)new CraftInventoryDoubleChest(new InventoryLargeChest("<Broker> Buy", new TileEntityChest(), new TileEntityChest()));
+        } else {
+            inv = (DoubleChestInventory)new CraftInventoryDoubleChest(new InventoryLargeChest("<Broker> Cancel", new TileEntityChest(), new TileEntityChest()));
+        }
         inv.setMaxStackSize(64);
         for (int i = 45; i < 54; i++) {
             inv.setItem(i, new ItemStack(Material.ENDER_PORTAL));
@@ -221,9 +231,17 @@ public class Broker extends JavaPlugin {
             HashMap<Integer, HashMap<String, Object>> sellOrders;
             String[] subSplit = pageSplit[0].split(":");
             if (isDamageableItem(new ItemStack(Material.getMaterial(subSplit[0])))) {
-                sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, damage, enchantments", "price ASC, damage ASC");
+                if (playerName == null) {
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, damage, enchantments", "price ASC, damage ASC");
+                } else {
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + playerName + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, damage, enchantments", "price ASC, damage ASC");
+                }
             } else {
-                sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price ASC, damage ASC");
+                if (playerName == null) {
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price ASC, damage ASC");
+                } else {
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + playerName + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price ASC, damage ASC");
+                }
             }
             if (sellOrders != null) {
                 int rows = sellOrders.size();
@@ -284,7 +302,12 @@ public class Broker extends JavaPlugin {
             }
         } else {
             // Load Main Page
-            HashMap<Integer, HashMap<String, Object>> sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = 0", "itemName, damage", "itemName, damage ASC");
+            HashMap<Integer, HashMap<String, Object>> sellOrders;
+            if (playerName == null) {
+                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = 0", "itemName, damage", "itemName, damage ASC");
+            } else {
+                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + playerName + "' AND orderType = 0", "itemName, damage", "itemName, damage ASC");
+            }
             if (sellOrders != null) {
                 int rows = sellOrders.size();
                 int added = 0;
