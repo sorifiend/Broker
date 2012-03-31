@@ -1,0 +1,27 @@
+name: Broker
+main: me.ellbristow.broker.Broker
+version: 0.0.1a
+author: ellbristow
+database: true
+dev-url: http://dev.bukkit.org/server-mods/broker
+depend: [Vault]
+description: >
+             Trade items using an MMO exchange style trade system
+commands:
+  broker:
+    description: Broker command help  
+permissions:
+  broker.*:
+    description: Access to all areas of Broker
+    children:
+      broker.use: true
+      broker.commands.buy: true
+      broker.commands.sell: true
+  broker.use:
+    description: Can use the broker (and /broker command)
+  broker.commands.sell:
+    description: Can use the '/broker sell' commands
+  broker.commands.buy:
+    description: Can use the '/broker buy' commands
+  broker.commands.query:
+    description: Can use the '/broker query' commands
