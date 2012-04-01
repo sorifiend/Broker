@@ -149,18 +149,18 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", null).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player.getName()).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", null).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), null).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -174,7 +174,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", null).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player.getName()).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {

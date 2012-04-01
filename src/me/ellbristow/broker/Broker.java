@@ -310,6 +310,7 @@ public class Broker extends JavaPlugin {
             }
             if (sellOrders != null) {
                 int rows = sellOrders.size();
+                int checkedrows = 0;
                 int added = 0;
                 String lastItem = "";
                 int skipped = 0;
@@ -323,11 +324,12 @@ public class Broker extends JavaPlugin {
                                 skipped++;
                             }
                         }
-                        if (!inv.contains(stack) && rows >= pageNo * (45 + skipped)) {
+                        if (!inv.contains(stack) && checkedrows >= pageNo * (45 + skipped)) {
                             inv.addItem(stack);
                             added++;
                         }
                         lastItem = (String)sellOrders.get(i).get("itemName");
+                        checkedrows++;
                     }
                 }
                 if (rows > 45) {
