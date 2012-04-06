@@ -73,7 +73,7 @@ public class BrokerListener implements Listener {
                     // Clicked item on sub-page
                     event.setCancelled(true);
                     if (!plugin.priceCheck.containsKey(player.getName())) {
-                        double price = getPrice(inv,slot);
+                        double price = getPrice(inv,slot, null);
                         if (price != 0.00) {
                             player.sendMessage(ChatColor.GOLD + "Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " (each)");
                             HashMap<Integer,Double> slotPrice = new HashMap<Integer,Double>();
@@ -88,7 +88,7 @@ public class BrokerListener implements Listener {
                         HashMap<Integer,Double> clickedSlotPrice = plugin.priceCheck.get(player.getName());
                         Object[] slotKeys = clickedSlotPrice.keySet().toArray();
                         int clickedSlot = (Integer)slotKeys[0];
-                        double price = getPrice(inv,slot);
+                        double price = getPrice(inv,slot, null);
                         if (clickedSlot != slot) {
                             if (price != 0.00) {
                                 player.sendMessage(ChatColor.GOLD + "Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " (each)");
@@ -195,9 +195,14 @@ public class BrokerListener implements Listener {
                         }
                         enchantmentString += "'";
                     }
-                    HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("*","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND quant = " + stack.getAmount() + " AND price = " + getPrice(inv, slot),null,null);
-                    int orderId = (Integer)sellOrders.get(0).get("id");
-                    plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + orderId);
+                    HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("*","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + getPrice(inv, slot, player.getName()),null,null);
+                    int totQuant = 0;
+                    for (int i = 0; i < sellOrders.size(); i++) {
+                        int orderId = (Integer)sellOrders.get(i).get("id");
+                        totQuant += (Integer)sellOrders.get(i).get("quant");
+                        plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + orderId);
+                    }
+                    stack.setAmount(totQuant);
                     String itemName = stack.getType().name();
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
@@ -209,7 +214,7 @@ public class BrokerListener implements Listener {
                     player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
                     HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
                     if (!dropped.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Not all items coudl fit in your Inventory!");
+                        player.sendMessage(ChatColor.RED + "Not all items could fit in your Inventory!");
                         player.sendMessage(ChatColor.RED + "Look on the floor!");
                         for (int i = 0; i < dropped.size(); i++) {
                             player.getWorld().dropItem(player.getLocation(), dropped.get(i));
@@ -366,7 +371,7 @@ public class BrokerListener implements Listener {
         }
     }
     
-    private double getPrice(Inventory inv, int slot) {
+    private double getPrice(Inventory inv, int slot, String playerName) {
         double price = 0.00;
         ItemStack stack = inv.getItem(slot);
         Map<Enchantment, Integer> enchantments = stack.getEnchantments();
@@ -382,7 +387,11 @@ public class BrokerListener implements Listener {
             }
             enchantmentString += "'";
         }
-        ResultSet sellOrders = plugin.brokerDb.query("SELECT price FROM BrokerOrders WHERE orderType = 0 AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " GROUP BY price, damage, enchantments ORDER BY price ASC, damage ASC");
+        String playerString = "";
+        if (playerName != null && playerName != "") {
+            playerString = " AND playerName = '" + playerName + "'";
+        }
+        ResultSet sellOrders = plugin.brokerDb.query("SELECT price FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " GROUP BY price, damage, enchantments ORDER BY price ASC, damage ASC");
         if (sellOrders != null) {
             if (!plugin.isDamageableItem(stack)) {
                 int counter = 0;
