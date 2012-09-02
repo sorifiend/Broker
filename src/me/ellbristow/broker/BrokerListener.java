@@ -15,7 +15,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -116,7 +116,7 @@ public class BrokerListener implements Listener {
                                     runPlayer.closeInventory();
                                 }
                             });
-                            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                            plugin.getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
                                 @Override
                                 public void run () {
                                     if (plugin.pending.containsKey(playerName)) {
@@ -241,7 +241,7 @@ public class BrokerListener implements Listener {
     }
     
     @EventHandler (priority = EventPriority.NORMAL)
-    public void onPlayerChat(PlayerChatEvent event) {
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
         if (!event.isCancelled()) {
             Player player = event.getPlayer();
             if (plugin.pending.containsKey(player.getName())) {
@@ -270,7 +270,7 @@ public class BrokerListener implements Listener {
                             }
                             enchantmentString += "'";
                         }
-                        if (stack.getDurability() != 0) {
+                        if (plugin.isDamageableItem(stack) && stack.getDurability() != 0) {
                             enchanted += "(Damaged)";
                         }
                         double price = pending.get(stack);
@@ -319,16 +319,35 @@ public class BrokerListener implements Listener {
                                         OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
                                         if (quantity - allocated >= quant) {
                                             allocated += quant;
-                                            plugin.vault.economy.depositPlayer(sellerName, quant * price);
+                                            double tax = 0;
+                                            if (plugin.taxRate != 0 && quant * price >= plugin.taxMinimum) {
+                                                if (plugin.taxIsPercentage) {
+                                                    tax = (quant * price) / 100 * plugin.taxRate;
+                                                } else {
+                                                    tax = plugin.taxRate;
+                                                }
+                                            }
+                                            plugin.vault.economy.depositPlayer(sellerName, (quant * price) - tax);
                                             String thisquery = "DELETE FROM BrokerOrders WHERE playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString;
                                             plugin.brokerDb.query(thisquery);
                                             if (seller.isOnline()) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + quant + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(quant * price));
+                                                if (tax >= 0.01) {
+                                                    seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
+                                                }
                                             }
                                         } else {
                                             int deduct = quantity - allocated;
                                             int selling = deduct;
-                                            plugin.vault.economy.depositPlayer(sellerName, deduct * price);
+                                            double tax = 0;
+                                            if (plugin.taxRate != 0 && deduct * price >= plugin.taxMinimum) {
+                                                if (plugin.taxIsPercentage) {
+                                                    tax = (deduct * price) / 100 * plugin.taxRate;
+                                                } else {
+                                                    tax = plugin.taxRate;
+                                                }
+                                            }
+                                            plugin.vault.economy.depositPlayer(sellerName, (deduct * price) - tax);
                                             HashMap<Integer, HashMap<String, Object>> sellerOrders = plugin.brokerDb.select("id, quant","BrokerOrders", "playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString, null, "timeCode ASC");
                                             Set<String> queries = new HashSet<String>();
                                             for (int j = 0; j < sellerOrders.size(); j++) {
@@ -349,6 +368,9 @@ public class BrokerListener implements Listener {
                                             }
                                             if (seller.isOnline()) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + selling + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(selling * price));
+                                                if (tax >= 0.01) {
+                                                    seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
+                                                }
                                             }
                                             allocated = quantity;
                                         }
@@ -374,24 +396,11 @@ public class BrokerListener implements Listener {
     private double getPrice(Inventory inv, int slot, String playerName) {
         double price = 0.00;
         ItemStack stack = inv.getItem(slot);
-        Map<Enchantment, Integer> enchantments = stack.getEnchantments();
-        String enchantmentString = "";
-        if (!enchantments.isEmpty()) {
-            enchantmentString = " AND enchantments = '";
-            Object[] enchs = enchantments.keySet().toArray();
-            for (Object ench : enchs) {
-                if (!" AND enchantments = '".equals(enchantmentString)) {
-                    enchantmentString += ";";
-                }
-                enchantmentString += ((Enchantment)ench).getId() + "@" + enchantments.get((Enchantment)ench);
-            }
-            enchantmentString += "'";
-        }
         String playerString = "";
-        if (playerName != null && playerName != "") {
+        if (playerName != null && !playerName.equals("")) {
             playerString = " AND playerName = '" + playerName + "'";
         }
-        ResultSet sellOrders = plugin.brokerDb.query("SELECT price FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " GROUP BY price, damage, enchantments ORDER BY price ASC, damage ASC");
+        ResultSet sellOrders = plugin.brokerDb.query("SELECT price FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' GROUP BY price, damage, enchantments ORDER BY price ASC, damage ASC LIMIT " + slot + ", 1");
         if (sellOrders != null) {
             if (!plugin.isDamageableItem(stack)) {
                 int counter = 0;

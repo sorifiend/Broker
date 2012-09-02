@@ -1,6 +1,5 @@
 package me.ellbristow.broker;
 
-import java.io.*;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +10,6 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -21,23 +19,36 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class Broker extends JavaPlugin {
     
-    private static File itemDataFile;
-    private static FileConfiguration itemAlts;
+    private static FileConfiguration config;
     private String[] tableColumns = {"id", "playerName", "orderType", "timeCode", "itemName", "enchantments", "damage", "price", "quant"};
     private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "DOUBLE NOT NULL", "INTEGER NOT NULL"};
     protected vaultBridge vault;
-    public BrokerDb brokerDb;
-    public HashMap<String,HashMap<Integer,Double>> priceCheck = new HashMap<String, HashMap<Integer,Double>>();
-    public HashMap<String,HashMap<ItemStack,Double>> pending = new HashMap<String, HashMap<ItemStack,Double>>();
+    protected BrokerDb brokerDb;
+    protected HashMap<String,HashMap<Integer,Double>> priceCheck = new HashMap<String, HashMap<Integer,Double>>();
+    protected HashMap<String,HashMap<ItemStack,Double>> pending = new HashMap<String, HashMap<ItemStack,Double>>();
+    
+    protected double taxRate;
+    protected boolean taxIsPercentage;
+    protected double taxMinimum;
 
     @Override
     public void onEnable() {
-        itemAlts = getItemAlts();
-        saveItemAlts();
+        config = getConfig();
+        
+        taxRate = config.getDouble("salesTaxRate", 0.0);
+        config.set("salesTaxRate", taxRate);
+        taxIsPercentage = config.getBoolean("taxIsPercentage", false);
+        config.set("taxIsPercentage", taxIsPercentage);
+        taxMinimum = config.getDouble("minimumTaxable", 0.0);
+        config.set("minimumTaxable", taxMinimum);
+        
+        saveConfig();
+        
         vault = new vaultBridge(this);
         if (vault.foundEconomy == false) {
             getLogger().severe("Could not find an Economy Plugin via [Vault]!");
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
         brokerDb = new BrokerDb(this);
         brokerDb.getConnection();
@@ -49,7 +60,8 @@ public class Broker extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        brokerDb.close();
+        if (brokerDb != null)
+            brokerDb.close();
     }
     
     @Override
@@ -78,10 +90,6 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GOLD + "/broker sell cancel");
                     sender.sendMessage(ChatColor.GRAY + " Cancel an existing sell order");
                 }
-                if (sender.hasPermission("broker.commands.query")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker query [itemId|itemName]");
-                    sender.sendMessage(ChatColor.GRAY + " See the buy orders outstanding for the specified item");
-                }
                 return true;
             }
             
@@ -101,62 +109,37 @@ public class Broker extends JavaPlugin {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the buy command!");
                         return false;
                     }
-                    switch (args.length) {
-                        case 1:
-                            player.openInventory(getBrokerInv("0", null));
-                            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
-                            player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
-                        break;
-                        case 2:
-                            // TODO: Check item exists
-                            // TODO: Check for sell orders
-                            // TODO: Buy item if available
-                        break;
-                        case 3:
-                            // TODO: Check item exists
-                            // TODO: Check price is valid
-                            // TODO: Check for sell orders
-                            // TODO: Buy item if available
-                            // TODO: List buy order if not available
-                        break;
-                    }
+                    player.openInventory(getBrokerInv("0", null));
+                    pending.remove(player.getName());
+                    player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+                    player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
                     return true;
                 } else if (args[0].equalsIgnoreCase("sell")) {
                     if (!sender.hasPermission("broker.commands.sell")) {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the sell command!");
                         return false;
                     }
-                    if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
-                        player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
-                        player.openInventory(getBrokerInv("0", player.getName()));
-                        return true;
-                    }
                     ItemStack itemInHand = player.getItemInHand();
-                    if (itemInHand == null || itemInHand.getTypeId() == 0) {
-                        sender.sendMessage(ChatColor.RED + "You're not holding anything to sell!");
-                        return false;
-                    }
                     switch (args.length) {
                         case 1:
-                            if (!itemInHand.getEnchantments().isEmpty()) {
-                                // Item is enchanted
-                                sender.sendMessage(ChatColor.RED + "You must set a price for enchanted items!");
-                                sender.sendMessage(ChatColor.RED + "/broker sell [price per item]!");
+                            if (itemInHand == null || itemInHand.getTypeId() == 0) {
+                                sender.sendMessage(ChatColor.RED + "You're not holding anything to sell!");
                                 return false;
                             }
-                            if (isDamageableItem(itemInHand) && itemInHand.getDurability() != 0) {
-                                // Item is damaged
-                                sender.sendMessage(ChatColor.RED + "You must set a price for damaged items!");
-                                sender.sendMessage(ChatColor.RED + "/broker sell [price per item]!");
-                                return false;
-                            }
-                            
-                            // TODO: Check for buy orders
-                            // TODO: Sell item or return 'No buyers'
-                            sender.sendMessage(ChatColor.RED + "Um... sorry... this bit doesn't work yet!");
+                            sender.sendMessage(ChatColor.RED + "You must set a price to sell items!");
+                            sender.sendMessage(ChatColor.RED + "/broker sell [price per item]!");
                         break;
                         case 2:
-                            double price = 0;
+                            if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
+                                player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
+                                player.openInventory(getBrokerInv("0", player.getName()));
+                                return true;
+                            }
+                            if (itemInHand == null || itemInHand.getTypeId() == 0) {
+                                sender.sendMessage(ChatColor.RED + "You're not holding anything to sell!");
+                                return false;
+                            }
+                            double price;
                             try {
                                 price = Double.parseDouble(args[1]);
                             } catch (NumberFormatException nfe) {
@@ -164,8 +147,7 @@ public class Broker extends JavaPlugin {
                                 sender.sendMessage(ChatColor.RED + "/broker sell [price per item]!");
                                 return false;
                             }
-                            // TODO: Check for buy orders
-                            // TODO: If not damaged or enchanted, fulfil buy order (if available)
+
                             // List item for sale
                             int quant = itemInHand.getAmount();
                             String itemName = itemInHand.getType().name();
@@ -194,8 +176,8 @@ public class Broker extends JavaPlugin {
                         break;
                     }
                     return true;
-                } else if (args[0].equalsIgnoreCase("query")) {
-                    sender.sendMessage(ChatColor.RED + "Um... sorry... this bit doesn't work yet!");
+                } else {
+                    sender.sendMessage(ChatColor.RED + "Um... sorry... I don't recognise "+ChatColor.WHITE+args[0]+ChatColor.RED+"!");
                     return true;
                 }
             }
@@ -204,7 +186,6 @@ public class Broker extends JavaPlugin {
         return false;
     }
     
-    @SuppressWarnings("CallToThreadDumpStack")
     protected DoubleChestInventory getBrokerInv(String page, String playerName) {
         DoubleChestInventory inv;
         if (playerName == null) {
@@ -332,6 +313,7 @@ public class Broker extends JavaPlugin {
                         checkedrows++;
                     }
                 }
+                rows -= skipped;
                 if (rows > 45) {
                     int pageCount = 0;
                     while (rows > 0) {
@@ -351,77 +333,10 @@ public class Broker extends JavaPlugin {
     
     protected boolean isDamageableItem(ItemStack stack) {
         int typeId = stack.getTypeId();
-        if ((typeId >= 256 && typeId <= 258) || typeId == 259 || typeId == 261 || (typeId >= 267 && typeId <= 279) || (typeId >= 283 && typeId <= 286) || (typeId >= 290 && typeId <= 294) || (typeId >= 298 && typeId <= 317) || typeId == 351 || typeId == 359 || typeId == 383) {
+        if ((typeId >= 256 && typeId <= 258) || typeId == 259 || typeId == 261 || (typeId >= 267 && typeId <= 279) || (typeId >= 283 && typeId <= 286) || (typeId >= 290 && typeId <= 294) || (typeId >= 298 && typeId <= 317) || typeId == 359 || typeId == 383) {
             return true;
         }
         return false;
-    }
-    
-    private String removePlural(String plural) {
-        String singular = plural;
-        if (plural.lastIndexOf("S") == plural.length() - 1) {
-            singular = plural.substring(0, plural.length() - 1);
-        }
-        return singular;
-    }
-    
-    private String removeCommonErrors(String withErrors) {
-        Object[] allItems = itemAlts.getKeys(false).toArray();
-        for (Object item : allItems) {
-            String altString = itemAlts.getString((String)item,"");
-            if (!altString.equals("")) {
-                String[] alts = altString.split(",");
-                for (String alt : alts) {
-                    if (withErrors.toLowerCase().equals(alt.toLowerCase())) {
-                        return (String)item;
-                    }
-                }
-            }
-        }
-        return withErrors;
-    }
-    
-    private void loadItemAlts() {
-        if (itemDataFile == null) {
-            itemDataFile = new File(getDataFolder(),"itemAlts.yml");
-            if (!itemDataFile.exists()) {
-                itemDataFile.getParentFile().mkdirs();
-                InputStream in = getResource("itemAlts.yml");
-                try {
-                    OutputStream out = new FileOutputStream(itemDataFile);
-                    byte[] buf = new byte[1024];
-                    int len;
-                    while((len=in.read(buf))>0){
-                        out.write(buf,0,len);
-                    }
-                    out.close();
-                    in.close();
-                } catch (Exception e) {
-                    String message = "Error creating file " + "itemAlts.yml";
-                    getLogger().warning(message);
-                }
-            }
-        }
-        itemAlts = YamlConfiguration.loadConfiguration(itemDataFile);
-    }
-    
-    private FileConfiguration getItemAlts() {
-        if (itemAlts == null) {
-            loadItemAlts();
-        }
-        return itemAlts;
-    }
-	
-    private void saveItemAlts() {
-        if (itemAlts == null || itemDataFile == null) {
-            return;
-        }
-        try {
-            itemAlts.save(itemDataFile);
-        } catch (IOException ex) {
-            String message = "Could not save " + itemDataFile + "!";
-            getLogger().severe(message);
-        }
     }
     
 }

@@ -1,6 +1,6 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 0.0.5a
+version: 1.0.0
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
@@ -23,5 +23,3 @@ permissions:
     description: Can use the '/broker sell' commands
   broker.commands.buy:
     description: Can use the '/broker buy' commands
-  broker.commands.query:
-    description: Can use the '/broker query' commands

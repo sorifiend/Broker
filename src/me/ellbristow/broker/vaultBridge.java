@@ -25,8 +25,6 @@ public class vaultBridge {
             economyName = plugin.getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class).getProvider().getName();
             String message = "Hooked in to " + economyName + " via [Vault]!";
             plugin.getLogger().info(message);
-        } else {
-            plugin.getLogger().warning("No economy plugin found! Economy Options Disabled!");
         }
     }
     

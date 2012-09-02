@@ -28,6 +28,21 @@ public class BrokerDb {
     public Connection open() {
         try {
             conn = DriverManager.getConnection("jdbc:sqlite:" + sqlFile.getAbsolutePath());
+            plugin.getServer().getScheduler().scheduleAsyncRepeatingTask(plugin, new Runnable() {
+                
+                @Override
+                public void run() {
+                    try {
+                        conn.close();
+                        conn = DriverManager.getConnection( "jdbc:sqlite:" + sqlFile.getAbsolutePath() );
+                        plugin.getLogger().severe("[SQL] Connection refreshed!");
+                    } catch (SQLException ex) {
+                        plugin.getLogger().severe("[SQL] Scheduled reconnect failed!");
+                        ex.printStackTrace();
+                    }
+                }
+                
+            }, 3600L, 3600L);
             return conn;
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
@@ -46,7 +61,7 @@ public class BrokerDb {
     }
     
     public boolean checkTable(String tableName) {
-        DatabaseMetaData dbm = null;
+        DatabaseMetaData dbm;
         try {
             dbm = this.open().getMetaData();
             ResultSet tables = dbm.getTables(null, null, tableName, null);
