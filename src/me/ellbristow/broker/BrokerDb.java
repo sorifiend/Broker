@@ -32,14 +32,7 @@ public class BrokerDb {
                 
                 @Override
                 public void run() {
-                    try {
-                        conn.close();
-                        conn = DriverManager.getConnection( "jdbc:sqlite:" + sqlFile.getAbsolutePath() );
-                        plugin.getLogger().severe("[SQL] Connection refreshed!");
-                    } catch (SQLException ex) {
-                        plugin.getLogger().severe("[SQL] Scheduled reconnect failed!");
-                        ex.printStackTrace();
-                    }
+                    close();
                 }
                 
             }, 3600L, 3600L);
@@ -51,12 +44,12 @@ public class BrokerDb {
     }
     
     public void close() {
-        if (conn !=null) {
-            try {
-                conn.close();
-            } catch (Exception e) {
-                plugin.getLogger().severe(e.getMessage());
+        try {
+            if (conn !=null && !conn.isClosed()) {
+                    conn.close();
             }
+        } catch (Exception e) {
+            plugin.getLogger().severe(e.getMessage());
         }
     }
     
@@ -95,6 +88,8 @@ public class BrokerDb {
     
     public ResultSet query(String query) {
         try {
+            if (conn.isClosed())
+                open();
             statement = conn.createStatement();
             ResultSet results = statement.executeQuery(query);
             return results;
@@ -153,6 +148,31 @@ public class BrokerDb {
             plugin.getLogger().severe(e.getMessage());
         }
         return null;
+    }
+    
+    public boolean tableContainsColumn(String tableName, String columnName) {
+        try {
+            statement = conn.createStatement();
+            ResultSet rs = statement.executeQuery("SELECT " + columnName + " FROM " + tableName + " LIMIT 1");
+            if (rs == null) {
+                return false;
+            }
+        } catch (SQLException e) {
+            if (e.getMessage().contains("no such column: " + columnName)) {
+                return false;
+            }
+            plugin.getLogger().severe(e.getMessage());
+        }
+        return true;
+    }
+    
+    public void addColumn(String tableName, String columnDef) {
+        try {
+            statement = conn.createStatement();
+            statement.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN " + columnDef);
+        } catch (SQLException e) {
+            plugin.getLogger().severe(e.getMessage());
+        }
     }
     
 }
