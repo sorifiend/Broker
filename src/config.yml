@@ -17,7 +17,7 @@
 # 
 # maxOrderPerPlayer : Maximum number of orders a player can list (0 = Unlimited)
 # 
-# vipMaxOrders : Maximum number of orders a VIP player can list (broker.vip)
+# vipMaxOrders : Maximum number of orders a VIP player can list
 # 
 # 
 salesTaxCharge: 0.0

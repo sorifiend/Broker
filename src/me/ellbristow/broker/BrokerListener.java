@@ -46,18 +46,18 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, false).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", null).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, false).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", null).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, false).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), null).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -71,7 +71,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, false).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", null).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
@@ -168,18 +168,18 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, true).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player.getName()).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, true).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, true).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -193,7 +193,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, true).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player.getName()).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
@@ -230,9 +230,9 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, true).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player.getName()).getContents());
                     if (inv.getItem(0) == null) {
-                        inv.setContents(plugin.getBrokerInv("0", player, true).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player.getName()).getContents());
                     }
                     player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
                     HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
@@ -455,7 +455,7 @@ public class BrokerListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            player.openInventory(plugin.getBrokerInv("0", player, false));
+            player.openInventory(plugin.getBrokerInv("0", null));
             plugin.pending.remove(player.getName());
             player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");

@@ -1,12 +1,12 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 1.2.0
+version: 1.1.0
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
 depend: [Vault]
 description: >
-             Trade items using an MMORPG exchange style trade system
+             Trade items using an MMO exchange style trade system
 commands:
   broker:
     description: Broker command help  

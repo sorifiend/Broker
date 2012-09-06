@@ -3,15 +3,17 @@ package me.ellbristow.broker;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import org.bukkit.Bukkit;
+import net.minecraft.server.InventoryLargeChest;
+import net.minecraft.server.TileEntityChest;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -115,7 +117,7 @@ public class Broker extends JavaPlugin {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the buy command!");
                         return false;
                     }
-                    player.openInventory(getBrokerInv("0", player, false));
+                    player.openInventory(getBrokerInv("0", null));
                     pending.remove(player.getName());
                     player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
                     player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
@@ -136,7 +138,7 @@ public class Broker extends JavaPlugin {
                     } else if (args.length >= 2) {
                         if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
                             player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
-                            player.openInventory(getBrokerInv("0", player, true));
+                            player.openInventory(getBrokerInv("0", player.getName()));
                             return true;
                         }
                         if ((player.hasPermission("broker.vip") && vipMaxOrders != 0 && sellOrderCount(player.getName()) >= vipMaxOrders) || (!player.hasPermission("broker.vip") && maxOrders != 0 && sellOrderCount(player.getName()) >= maxOrders)) {
@@ -213,12 +215,12 @@ public class Broker extends JavaPlugin {
         return false;
     }
     
-    protected Inventory getBrokerInv(String page, Player player, boolean forPlayer) {
-        Inventory inv;
-        if (!forPlayer) {
-            inv = Bukkit.createInventory(getServer().getPlayer(player.getName()), 54, "<Broker> Buy");
+    protected DoubleChestInventory getBrokerInv(String page, String playerName) {
+        DoubleChestInventory inv;
+        if (playerName == null) {
+            inv = (DoubleChestInventory)new CraftInventoryDoubleChest(new InventoryLargeChest("<Broker> Buy", new TileEntityChest(), new TileEntityChest()));
         } else {
-            inv = Bukkit.createInventory(getServer().getPlayer(player.getName()), 54, "<Broker> Cancel");
+            inv = (DoubleChestInventory)new CraftInventoryDoubleChest(new InventoryLargeChest("<Broker> Cancel", new TileEntityChest(), new TileEntityChest()));
         }
         inv.setMaxStackSize(64);
         for (int i = 45; i < 54; i++) {
@@ -239,16 +241,16 @@ public class Broker extends JavaPlugin {
             HashMap<Integer, HashMap<String, Object>> sellOrders;
             String[] subSplit = pageSplit[0].split(":");
             if (isDamageableItem(new ItemStack(Material.getMaterial(subSplit[0])))) {
-                if (!forPlayer) {
+                if (playerName == null) {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/pperItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + playerName + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/pperItems ASC, damage ASC");
                 }
             } else {
-                if (!forPlayer) {
+                if (playerName == null) {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + playerName + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price/perItems ASC, damage ASC");
                 }
             }
             if (sellOrders != null) {
@@ -311,10 +313,10 @@ public class Broker extends JavaPlugin {
         } else {
             // Load Main Page
             HashMap<Integer, HashMap<String, Object>> sellOrders;
-            if (!forPlayer) {
+            if (playerName == null) {
                 sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = 0", "itemName, damage", "itemName, damage ASC");
             } else {
-                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + player.getName() + "' AND orderType = 0", "itemName, damage", "itemName, damage ASC");
+                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + playerName + "' AND orderType = 0", "itemName, damage", "itemName, damage ASC");
             }
             if (sellOrders != null) {
                 int rows = sellOrders.size();
