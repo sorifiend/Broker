@@ -484,7 +484,7 @@ public class BrokerListener implements Listener {
         if (playerName != null && !playerName.equals("")) {
             playerString = " AND playerName = '" + playerName + "'";
         }
-        ResultSet sellOrders = plugin.brokerDb.query("SELECT price, perItems FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' GROUP BY price, perItems, damage, enchantments ORDER BY price/perItems ASC, damage ASC LIMIT " + slot + ", 1");
+        ResultSet sellOrders = plugin.brokerDb.query("SELECT price, perItems FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' GROUP BY price, perItems, damage, enchantments ORDER BY price/perItems ASC, damage ASC");
         if (sellOrders != null) {
             if (!plugin.isDamageableItem(stack)) {
                 int counter = 0;
@@ -498,10 +498,17 @@ public class BrokerListener implements Listener {
                     counter++;
                 }
             } else {
+                int counter = 0;
                 try {
-                    price = sellOrders.getDouble("price");
+                    while(sellOrders.next()) {
+                        if (counter == slot) {
+                            price = sellOrders.getDouble("price");
+                            perItems = sellOrders.getInt("perItems");
+                        }
+                        counter++;
+                    }
                 } catch (Exception e) {
-                }
+                    }
             }
         }
         return price+":"+perItems;

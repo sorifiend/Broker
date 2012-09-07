@@ -19,23 +19,29 @@ public class BrokerDb {
     }
     
     public Connection getConnection() {
-        if (conn == null) {
-            return open();
+        try {
+            if (conn == null || conn.isClosed()) {
+                return open();
+            }
+        } catch(SQLException e) {
+            e.printStackTrace();
         }
         return conn;
     }
     
     public Connection open() {
         try {
-            conn = DriverManager.getConnection("jdbc:sqlite:" + sqlFile.getAbsolutePath());
-            plugin.getServer().getScheduler().scheduleAsyncRepeatingTask(plugin, new Runnable() {
-                
-                @Override
-                public void run() {
-                    close();
-                }
-                
-            }, 3600L, 3600L);
+            if (conn == null || conn.isClosed()) {
+                conn = DriverManager.getConnection("jdbc:sqlite:" + sqlFile.getAbsolutePath());
+                plugin.getServer().getScheduler().scheduleAsyncRepeatingTask(plugin, new Runnable() {
+
+                    @Override
+                    public void run() {
+                        close();
+                    }
+
+                }, 3600L, 3600L);
+            }
             return conn;
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
@@ -45,8 +51,8 @@ public class BrokerDb {
     
     public void close() {
         try {
-            if (conn !=null && !conn.isClosed()) {
-                    conn.close();
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
             }
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
@@ -70,6 +76,8 @@ public class BrokerDb {
     
     public boolean createTable(String tableName, String[] columns, String[] dims) {
         try {
+            if (conn == null || conn.isClosed())
+                open();
             statement = conn.createStatement();
             String query = "CREATE TABLE " + tableName + "(";
             for (int i = 0; i < columns.length; i++) {
@@ -88,7 +96,7 @@ public class BrokerDb {
     
     public ResultSet query(String query) {
         try {
-            if (conn.isClosed())
+            if (conn == null || conn.isClosed())
                 open();
             statement = conn.createStatement();
             ResultSet results = statement.executeQuery(query);
@@ -96,6 +104,7 @@ public class BrokerDb {
         } catch (Exception e) {
             if (!e.getMessage().contains("not return ResultSet") || (e.getMessage().contains("not return ResultSet") && query.startsWith("SELECT"))) {
                 plugin.getLogger().severe(e.getMessage());
+                e.printStackTrace();
             }
         }
         return null;
@@ -107,6 +116,8 @@ public class BrokerDb {
         }
         String query = "SELECT " + fields + " FROM " + tableName;
         try {
+            if (conn == null || conn.isClosed())
+                open();
             statement = conn.createStatement();
             if (!"".equals(where) && where != null) {
                 query += " WHERE " + where;
@@ -146,12 +157,15 @@ public class BrokerDb {
             }
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
+            e.printStackTrace();
         }
         return null;
     }
     
     public boolean tableContainsColumn(String tableName, String columnName) {
         try {
+            if (conn == null || conn.isClosed())
+                open();
             statement = conn.createStatement();
             ResultSet rs = statement.executeQuery("SELECT " + columnName + " FROM " + tableName + " LIMIT 1");
             if (rs == null) {
@@ -168,6 +182,8 @@ public class BrokerDb {
     
     public void addColumn(String tableName, String columnDef) {
         try {
+            if (conn == null || conn.isClosed())
+                open();
             statement = conn.createStatement();
             statement.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN " + columnDef);
         } catch (SQLException e) {
