@@ -140,7 +140,7 @@ public class Broker extends JavaPlugin {
                             return true;
                         }
                         if ((player.hasPermission("broker.vip") && vipMaxOrders != 0 && sellOrderCount(player.getName()) >= vipMaxOrders) || (!player.hasPermission("broker.vip") && maxOrders != 0 && sellOrderCount(player.getName()) >= maxOrders)) {
-                            sender.sendMessage(ChatColor.RED + "You may only place a maximum of "+ChatColor.WHITE+maxOrders+ChatColor.RED+" sale orders!");
+                            sender.sendMessage(ChatColor.RED + "You may only place a maximum of "+ChatColor.WHITE+vipMaxOrders+ChatColor.RED+" sale orders!");
                             return false;
                         }
                         if (itemInHand == null || itemInHand.getTypeId() == 0) {
@@ -241,7 +241,7 @@ public class Broker extends JavaPlugin {
                 if (!forPlayer) {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/pperItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 }
             } else {
                 if (!forPlayer) {
@@ -340,7 +340,7 @@ public class Broker extends JavaPlugin {
                     }
                 }
                 rows -= skipped;
-                if (rows > 45) {
+                if (rows >= 45) {
                     int pageCount = 0;
                     while (rows > 0) {
                         pageCount++;
