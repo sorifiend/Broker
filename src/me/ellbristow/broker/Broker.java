@@ -135,6 +135,10 @@ public class Broker extends JavaPlugin {
                         sender.sendMessage(ChatColor.RED + "Try:" + ChatColor.WHITE + "/broker sell [price]!");
                     } else if (args.length >= 2) {
                         if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
+                            if (!player.hasPermission("broker.commands.cancel")) {
+                                player.sendMessage(ChatColor.RED + "You do not have permission to cancel orders!");
+                                return true;
+                            }
                             player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
                             player.openInventory(getBrokerInv("0", player, true));
                             return true;
