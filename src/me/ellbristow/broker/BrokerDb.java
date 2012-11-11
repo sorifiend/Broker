@@ -32,15 +32,8 @@ public class BrokerDb {
     public Connection open() {
         try {
             if (conn == null || conn.isClosed()) {
+                Class.forName("org.sqlite.JDBC");
                 conn = DriverManager.getConnection("jdbc:sqlite:" + sqlFile.getAbsolutePath());
-                plugin.getServer().getScheduler().scheduleAsyncRepeatingTask(plugin, new Runnable() {
-
-                    @Override
-                    public void run() {
-                        close();
-                    }
-
-                }, 3600L, 3600L);
             }
             return conn;
         } catch (Exception e) {
@@ -64,10 +57,13 @@ public class BrokerDb {
         try {
             dbm = this.open().getMetaData();
             ResultSet tables = dbm.getTables(null, null, tableName, null);
-            if (tables.next())
+            if (tables.next()) {
+                close();
                 return true;
-            else
+            } else {
+                close();
                 return false;
+            }
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
             return false;
@@ -91,6 +87,7 @@ public class BrokerDb {
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
         }
+        close();
         return true;
     }
     
@@ -100,6 +97,7 @@ public class BrokerDb {
                 open();
             statement = conn.createStatement();
             ResultSet results = statement.executeQuery(query);
+            close();
             return results;
         } catch (Exception e) {
             if (!e.getMessage().contains("not return ResultSet") || (e.getMessage().contains("not return ResultSet") && query.startsWith("SELECT"))) {
@@ -107,6 +105,7 @@ public class BrokerDb {
                 e.printStackTrace();
             }
         }
+        close();
         return null;
     }
     
@@ -151,14 +150,17 @@ public class BrokerDb {
                     numRows++;
                 }
                 results.close();
+                close();
                 return rows;
             } else {
+                close();
                 return null;
             }
         } catch (Exception e) {
             plugin.getLogger().severe(e.getMessage());
             e.printStackTrace();
         }
+        close();
         return null;
     }
     
@@ -169,14 +171,17 @@ public class BrokerDb {
             statement = conn.createStatement();
             ResultSet rs = statement.executeQuery("SELECT " + columnName + " FROM " + tableName + " LIMIT 1");
             if (rs == null) {
+                close();
                 return false;
             }
         } catch (SQLException e) {
             if (e.getMessage().contains("no such column: " + columnName)) {
+                close();
                 return false;
             }
             plugin.getLogger().severe(e.getMessage());
         }
+        close();
         return true;
     }
     
@@ -189,6 +194,7 @@ public class BrokerDb {
         } catch (SQLException e) {
             plugin.getLogger().severe(e.getMessage());
         }
+        close();
     }
     
 }
