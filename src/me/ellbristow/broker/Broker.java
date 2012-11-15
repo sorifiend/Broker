@@ -6,6 +6,7 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -87,7 +88,7 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GRAY + "{optional} [required]");
                 }
                 if (sender.hasPermission("broker.commands.buy")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy"+ChatColor.GRAY + ": Open the broker window to buy items");
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy {Seller Name}"+ChatColor.GRAY + ": Open the broker window to buy items");
                 }
                 if (sender.hasPermission("broker.commands.sell")) {
                     sender.sendMessage(ChatColor.GOLD + "/broker sell [Price] {Per # Items}");
@@ -115,7 +116,16 @@ public class Broker extends JavaPlugin {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the buy command!");
                         return false;
                     }
-                    player.openInventory(getBrokerInv("0", player, false));
+                    if (args.length >= 2) {
+                        OfflinePlayer seller = getServer().getOfflinePlayer(args[1]);
+                        if (!seller.hasPlayedBefore()) {
+                            player.sendMessage(ChatColor.RED + "Player " + ChatColor.WHITE + args[1] + ChatColor.RED + " not found!");
+                            return false;
+                        }
+                        player.openInventory(getBrokerInv("0", player, seller.getName()));
+                    } else {
+                        player.openInventory(getBrokerInv("0", player, null));
+                    }
                     pending.remove(player.getName());
                     player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
                     player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
@@ -132,7 +142,7 @@ public class Broker extends JavaPlugin {
                             return false;
                         }
                         sender.sendMessage(ChatColor.RED + "You must set a price to sell items!");
-                        sender.sendMessage(ChatColor.RED + "Try:" + ChatColor.WHITE + "/broker sell [price]!");
+                        sender.sendMessage(ChatColor.RED + "Try:" + ChatColor.WHITE + "/broker sell [price] {Per # Items}!");
                     } else if (args.length >= 2) {
                         if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
                             if (!player.hasPermission("broker.commands.cancel")) {
@@ -140,7 +150,7 @@ public class Broker extends JavaPlugin {
                                 return true;
                             }
                             player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
-                            player.openInventory(getBrokerInv("0", player, true));
+                            player.openInventory(getBrokerInv("0", player, player.getName()));
                             return true;
                         }
                         if ((player.hasPermission("broker.vip") && vipMaxOrders != 0 && sellOrderCount(player.getName()) >= vipMaxOrders) || (!player.hasPermission("broker.vip") && maxOrders != 0 && sellOrderCount(player.getName()) >= maxOrders)) {
@@ -156,7 +166,7 @@ public class Broker extends JavaPlugin {
                             price = Double.parseDouble(args[1]);
                         } catch (NumberFormatException nfe) {
                             sender.sendMessage(ChatColor.RED + "Sale price must be a number!");
-                            sender.sendMessage(ChatColor.RED + "/broker sell [price]");
+                            sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
                             return false;
                         }
                         
@@ -167,7 +177,7 @@ public class Broker extends JavaPlugin {
                                 perItems = Integer.parseInt(args[2]);
                                 each = "per " + perItems + " items";
                             } catch (NumberFormatException nfe) {
-                                sender.sendMessage(ChatColor.RED + "Per # Items must be a whoel number!");
+                                sender.sendMessage(ChatColor.RED + "Per # Items must be a whole number!");
                                 sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
                                 return false;
                             }
@@ -198,7 +208,7 @@ public class Broker extends JavaPlugin {
                         }
                         String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems) VALUES (0, '" + player.getName() + "', '" + itemName + "', '" + enchantmentString + "', " + damage + ", " + price + ", " + quant + ", " + new Date().getTime() + ", "+perItems+")";
                         brokerDb.query(query);
-                        if (player.getItemInHand().getAmount() > quant) {
+                        if (itemInHand.getAmount() > quant) {
                             player.getItemInHand().setAmount(player.getItemInHand().getAmount() - quant);
                         } else {
                             player.setItemInHand(null);
@@ -217,12 +227,15 @@ public class Broker extends JavaPlugin {
         return false;
     }
     
-    protected Inventory getBrokerInv(String page, Player player, boolean forPlayer) {
+    protected Inventory getBrokerInv(String page, Player buyer, String seller) {
         Inventory inv;
-        if (!forPlayer) {
-            inv = Bukkit.createInventory(player, 54, "<Broker> Buy");
+        if (seller == null || seller.equals("")) {
+            inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy");
+        } else if (seller.equalsIgnoreCase(buyer.getName())) {
+            inv = Bukkit.createInventory(buyer, 54, "<Broker> Cancel");
         } else {
-            inv = Bukkit.createInventory(player, 54, "<Broker> Cancel");        }
+            inv = Bukkit.createInventory(buyer, 54, "<Broker> " + seller);
+        }
         inv.setMaxStackSize(64);
         for (int i = 45; i < 54; i++) {
             inv.setItem(i, new ItemStack(Material.ENDER_PORTAL));
@@ -242,59 +255,36 @@ public class Broker extends JavaPlugin {
             HashMap<Integer, HashMap<String, Object>> sellOrders;
             String[] subSplit = pageSplit[0].split(":");
             if (isDamageableItem(new ItemStack(Material.getMaterial(subSplit[0])))) {
-                if (!forPlayer) {
+                if (seller == null || seller.equals("")) {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 }
             } else {
-                if (!forPlayer) {
+                if (seller == null || seller.equals("")) {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + player.getName() + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
                 }
             }
             if (sellOrders != null) {
                 int rows = sellOrders.size();
                 int added = 0;
                 for (int i = 0; i < rows; i++) {
-                    if (!isDamageableItem(new ItemStack(Material.getMaterial(sellOrders.get(i).get("itemName").toString())))) {
-                        // All items the same (Show top 5 prices)
-                        if (added < 5) {
-                            ItemStack stack = new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName")));
-                            stack.setDurability(Short.parseShort(sellOrders.get(i).get("damage").toString()));
-                            if ((String)sellOrders.get(i).get("enchantments") != null && !"".equals((String)sellOrders.get(i).get("enchantments"))) {
-                                String[] enchSplit = ((String)sellOrders.get(i).get("enchantments")).split(";");
-                                for (String ench : enchSplit) {
-                                    String[] enchantment = ench.split("@");
-                                    stack.addUnsafeEnchantment(Enchantment.getById(Integer.parseInt(enchantment[0])), Integer.parseInt(enchantment[1]));
-                                }
+                    // Items may vary (Show top 45 prices)
+                    if (added < 45) {
+                        ItemStack stack = new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName")));
+                        stack.setDurability(Short.parseShort(sellOrders.get(i).get("damage").toString()));
+                        if ((String)sellOrders.get(i).get("enchantments") != null && !"".equals((String)sellOrders.get(i).get("enchantments"))) {
+                            String[] enchSplit = ((String)sellOrders.get(i).get("enchantments")).split(";");
+                            for (String ench : enchSplit) {
+                                String[] enchantment = ench.split("@");
+                                stack.addUnsafeEnchantment(Enchantment.getById(Integer.parseInt(enchantment[0])), Integer.parseInt(enchantment[1]));
                             }
-                            stack.setAmount((Integer)sellOrders.get(i).get("totquant"));
-                            int column = 0;
-                            while (stack.getAmount() > 0 && column < 9) {
-                                inv.setItem((added*9)+column, stack);
-                                stack.setAmount(stack.getAmount()-64);
-                                column++;
-                            }
-                            added++;
                         }
-                    } else {
-                        // Items may vary (Show top 45 prices)
-                        if (added < 45) {
-                            ItemStack stack = new ItemStack(Material.getMaterial((String)sellOrders.get(i).get("itemName")));
-                            stack.setDurability(Short.parseShort(sellOrders.get(i).get("damage").toString()));
-                            if ((String)sellOrders.get(i).get("enchantments") != null && !"".equals((String)sellOrders.get(i).get("enchantments"))) {
-                                String[] enchSplit = ((String)sellOrders.get(i).get("enchantments")).split(";");
-                                for (String ench : enchSplit) {
-                                    String[] enchantment = ench.split("@");
-                                    stack.addUnsafeEnchantment(Enchantment.getById(Integer.parseInt(enchantment[0])), Integer.parseInt(enchantment[1]));
-                                }
-                            }
-                            stack.setAmount((Integer)sellOrders.get(i).get("totquant"));
-                            inv.setItem(added, stack);
-                            added++;
-                        }
+                        stack.setAmount((Integer)sellOrders.get(i).get("totquant"));
+                        inv.setItem(added, stack);
+                        added++;
                     }
                     inv.setItem(45, new ItemStack(Material.BOOK));
                     if (rows > 45) {
@@ -314,10 +304,10 @@ public class Broker extends JavaPlugin {
         } else {
             // Load Main Page
             HashMap<Integer, HashMap<String, Object>> sellOrders;
-            if (!forPlayer) {
+            if (seller == null || seller.equals("")) {
                 sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = 0", "itemName, damage", "itemName, damage ASC");
             } else {
-                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + player.getName() + "' AND orderType = 0", "itemName, damage", "itemName, damage ASC");
+                sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + seller + "' AND orderType = 0", "itemName, damage", "itemName, damage ASC");
             }
             if (sellOrders != null) {
                 int rows = sellOrders.size();

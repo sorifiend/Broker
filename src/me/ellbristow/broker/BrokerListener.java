@@ -1,6 +1,5 @@
 package me.ellbristow.broker;
 
-import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -34,30 +33,33 @@ public class BrokerListener implements Listener {
     
     @EventHandler (priority = EventPriority.NORMAL)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.isCancelled()) {
-            Inventory inv = event.getView().getTopInventory();
-            if ("<Broker> Buy".equals(inv.getName())) {
+        if (event.isCancelled()) return;
+        Inventory inv = event.getView().getTopInventory();
+        if (inv.getName().startsWith("<Broker>")) {
+            String seller = inv.getName().split(" ")[1];
+            if (!seller.equals("Cancel")) {
+                if (seller.equals("Buy")) seller = "";
                 Player player = (Player)event.getWhoClicked();
                 int slot = event.getRawSlot();
                 if (slot >= 45 && slot <54) {
                     event.setCancelled(true);
-                    // Clicked nevigation slot
+                    // Clicked navigation slot
                     plugin.priceCheck.remove(player.getName());
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, false).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player, seller).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, false).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, seller).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, false).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, seller).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -71,7 +73,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, false).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, seller).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
@@ -92,7 +94,14 @@ public class BrokerListener implements Listener {
                             slotPrice.put(slot,price+":"+perItems);
                             plugin.priceCheck.put(player.getName(), slotPrice);
                         } else {
-                            player.closeInventory();
+                            final String playerName = player.getName();
+                            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                            @Override
+                            public void run() {
+                                    Player runPlayer = plugin.getServer().getPlayer(playerName);
+                                    runPlayer.closeInventory();
+                                }
+                            });
                             player.sendMessage(ChatColor.RED + "Sorry! This item may not be available any more!");
                             player.sendMessage(ChatColor.RED + "Please try again.");
                         }
@@ -116,7 +125,14 @@ public class BrokerListener implements Listener {
                                 plugin.priceCheck.put(player.getName(), slotPrice);
                             } else {
                                 plugin.priceCheck.remove(player.getName());
-                                player.closeInventory();
+                                final String playerName = player.getName();
+                                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                                @Override
+                                public void run() {
+                                        Player runPlayer = plugin.getServer().getPlayer(playerName);
+                                        runPlayer.closeInventory();
+                                    }
+                                });
                                 player.sendMessage(ChatColor.RED + "Sorry! This item may not be available any more!");
                                 player.sendMessage(ChatColor.RED + "Please try again.");
                             }
@@ -168,18 +184,18 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, true).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player, player.getName()).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, true).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, true).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, player.getName()).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -193,7 +209,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, true).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, player.getName()).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
@@ -230,9 +246,9 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, true).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, player.getName()).getContents());
                     if (inv.getItem(0) == null) {
-                        inv.setContents(plugin.getBrokerInv("0", player, true).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player, player.getName()).getContents());
                     }
                     player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
                     HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
@@ -433,12 +449,27 @@ public class BrokerListener implements Listener {
         if (event.isCancelled())
             return;
         String line0 = event.getLine(0);
+        String line3 = event.getLine(3);
         if (line0.equalsIgnoreCase("[Broker]")) {
             Player player = event.getPlayer();
-            if (!player.hasPermission("broker.sign")) {
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to create broker signs!");
                 event.getBlock().breakNaturally();
                 return;
+            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others")) {
+                event.setLine(3, player.getName());
+            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others")) && player.hasPermission("broker.sign") && !line3.equals("")) {
+                if (!player.hasPermission("broker.sign.personal.others")) {
+                    event.setLine(3, player.getName());
+                } else {
+                    OfflinePlayer target = plugin.getServer().getOfflinePlayer(line3);
+                    if (!target.hasPlayedBefore()) {
+                        player.sendMessage(ChatColor.RED + "Player " + ChatColor.WHITE + line3 + ChatColor.RED + " not found!");
+                        event.getBlock().breakNaturally();
+                        return;
+                    }
+                    event.setLine(3, target.getName());
+                }
             }
             event.setLine(0, "[Broker]");
         }
@@ -455,7 +486,19 @@ public class BrokerListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            player.openInventory(plugin.getBrokerInv("0", player, false));
+            Sign sign = (Sign)event.getClickedBlock().getState();
+            String sellerName = sign.getLine(3);
+            if (sellerName.equals("")) {
+                player.openInventory(plugin.getBrokerInv("0", player, null));
+            } else {
+                OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
+                if (!seller.hasPlayedBefore()) {
+                    player.sendMessage(ChatColor.RED + "Sorry! This shop appears to be closed!");
+                    event.setCancelled(true);
+                    return;
+                }
+                player.openInventory(plugin.getBrokerInv("0", player, seller.getName()));
+            }
             plugin.pending.remove(player.getName());
             player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
@@ -467,50 +510,45 @@ public class BrokerListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.isCancelled())
             return;
-        if ((event.getBlock().getType().equals(Material.SIGN_POST) || event.getBlock().getType().equals(Material.WALL_SIGN)) && ((Sign)event.getBlock().getState()).getLine(0).equalsIgnoreCase("[Broker]") && !event.getPlayer().hasPermission("broker.sign")) {
-            event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker signs!");
-            event.setCancelled(true);
-            Sign sign = (Sign)event.getBlock().getState();
-            sign.setLine(0, sign.getLine(0));        
-            sign.update();
+        if ((event.getBlock().getType().equals(Material.SIGN_POST) || event.getBlock().getType().equals(Material.WALL_SIGN)) && ((Sign)event.getBlock().getState()).getLine(0).equalsIgnoreCase("[Broker]")) {
+            String owner = ((Sign)event.getBlock().getState()).getLine(3);
+            Player player = event.getPlayer();
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal")  && !player.hasPermission("broker.sign.personal.others")) {
+                event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker signs!");
+                event.setCancelled(true);
+                Sign sign = (Sign)event.getBlock().getState();
+                sign.setLine(0, sign.getLine(0));        
+                sign.update();
+            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !owner.equalsIgnoreCase(player.getName())) {
+                event.getPlayer().sendMessage(ChatColor.RED + "This is not your sign to break!");
+                event.setCancelled(true);
+                Sign sign = (Sign)event.getBlock().getState();
+                sign.setLine(0, sign.getLine(0));        
+                sign.update();
+            }
         }
     }
     
-    private String getPrice(Inventory inv, int slot, String playerName) {
+    private String getPrice(Inventory inv, int slot, String sellerName) {
         double price = 0.00;
         int perItems = 1;
         ItemStack stack = inv.getItem(slot);
-        String playerString = "";
-        if (playerName != null && !playerName.equals("")) {
-            playerString = " AND playerName = '" + playerName + "'";
+        String sellerString = "";
+        if (sellerName != null && !sellerName.equals("")) {
+            sellerString = " AND playerName = '" + sellerName + "'";
         }
-        ResultSet sellOrders = plugin.brokerDb.query("SELECT price, perItems FROM BrokerOrders WHERE orderType = 0" + playerString + " AND itemName = '" + stack.getType().name() + "' GROUP BY price, perItems, damage, enchantments ORDER BY price/perItems ASC, damage ASC");
-        if (sellOrders != null) {
-            if (!plugin.isDamageableItem(stack)) {
-                int counter = 0;
-                while (counter <= Math.floor(slot/9)) {
-                    try {
-                        sellOrders.next();
-                        price = sellOrders.getDouble("price");
-                        perItems = sellOrders.getInt("perItems");
-                    } catch (Exception e) {
-                    }
-                    counter++;
+        HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("price, perItems", "BrokerOrders", "orderType = 0" + sellerString + " AND itemName = '" + stack.getType().name() + "'", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+        if (!sellOrders.isEmpty()) {
+            int counter = 0;
+            for (HashMap<String, Object> order : sellOrders.values()) {
+                if (counter == slot) {
+                    price = Double.parseDouble(order.get("price")+"");
+                    perItems = Integer.parseInt(order.get("perItems")+"");
                 }
-            } else {
-                int counter = 0;
-                try {
-                    while(sellOrders.next()) {
-                        if (counter == slot) {
-                            price = sellOrders.getDouble("price");
-                            perItems = sellOrders.getInt("perItems");
-                        }
-                        counter++;
-                    }
-                } catch (Exception e) {
-                    }
+                counter++;
             }
         }
+        plugin.getLogger().info(price+":"+perItems);
         return price+":"+perItems;
     }
     

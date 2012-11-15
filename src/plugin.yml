@@ -1,6 +1,6 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 1.2.4
+version: 1.3.0
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
@@ -19,6 +19,8 @@ permissions:
       broker.commands.sell: true
       broker.commands.cancel: true
       broker.sign: true
+      broker.sign.personal: true
+      broker.sign.personal.others: true
   broker.use:
     description: Can use the broker (and /broker command)
   broker.commands.sell:
@@ -29,5 +31,9 @@ permissions:
     description: Can use /broker sell cancel
   broker.sign:
     description: Admin command to allow creation of broker signs
+  broker.sign.personal:
+    description: Can make personal Broker signs (own shop)
+  broker.sign.personal.others:
+    description: Can make personal Broker signs for others
   broker.vip:
     description: Gain VIP access to broker (VIP order max)
