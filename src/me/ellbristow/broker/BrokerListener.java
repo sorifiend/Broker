@@ -548,7 +548,6 @@ public class BrokerListener implements Listener {
                 counter++;
             }
         }
-        plugin.getLogger().info(price+":"+perItems);
         return price+":"+perItems;
     }
     
