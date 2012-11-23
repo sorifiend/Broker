@@ -23,7 +23,6 @@ public class Broker extends JavaPlugin {
     private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "DOUBLE NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL DEFAULT 1"};
     protected vaultBridge vault;
     protected BrokerDb brokerDb;
-    protected HashMap<String,HashMap<Integer,String>> priceCheck = new HashMap<String, HashMap<Integer,String>>();
     protected HashMap<String,HashMap<ItemStack,String>> pending = new HashMap<String, HashMap<ItemStack,String>>();
     
     protected double taxRate;
