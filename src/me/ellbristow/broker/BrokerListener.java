@@ -9,15 +9,19 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Sign;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -426,7 +430,7 @@ public class BrokerListener implements Listener {
             return;
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && (event.getClickedBlock().getType().equals(Material.SIGN_POST) || event.getClickedBlock().getType().equals(Material.WALL_SIGN)) && ((Sign)event.getClickedBlock().getState()).getLine(0).equalsIgnoreCase("[Broker]")) {
             Player player = event.getPlayer();
-            if (!player.hasPermission("Broker.use")) {
+            if (!player.hasPermission("broker.use")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to use the broker!");
                 event.setCancelled(true);
                 return;
@@ -444,6 +448,42 @@ public class BrokerListener implements Listener {
                 }
                 player.openInventory(plugin.getBrokerInv("0", player, seller.getName()));
             }
+            plugin.pending.remove(player.getName());
+            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+            player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
+            event.setCancelled(true);
+        }
+    }
+    
+    @EventHandler (priority = EventPriority.NORMAL)
+    public void onPlayerTrade(PlayerInteractEntityEvent event) {
+        
+        if (event.isCancelled()) return;
+        
+        if (!event.getPlayer().isSneaking()) return;
+        
+        if (!event.getPlayer().hasPermission("broker.use")) return;
+        
+        Entity entity = event.getRightClicked();
+        
+        if (!(entity instanceof Player) && !(entity instanceof Villager)) return;
+        
+        Player player = event.getPlayer();
+        
+        if (entity instanceof Player && plugin.brokerPlayers) {
+            Player target = (Player)entity;
+            Inventory inv = plugin.getBrokerInv("0", player, target.getName());
+            if (inv == null || inv.getItem(0) == null) {
+                player.sendMessage(ChatColor.RED + "This player is not selling anything!");
+                return;
+            }
+            player.openInventory(inv);
+            plugin.pending.remove(player.getName());
+            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+            player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
+            event.setCancelled(true);
+        } else if (entity instanceof Villager && plugin.brokerVillagers) {
+            player.openInventory(plugin.getBrokerInv("0", player, null));
             plugin.pending.remove(player.getName());
             player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
@@ -472,6 +512,25 @@ public class BrokerListener implements Listener {
                 sign.update();
             }
         }
+    }
+    
+    @EventHandler (priority = EventPriority.NORMAL)
+    public void onVillagerDamage(EntityDamageByEntityEvent event) {
+        
+        if (event.isCancelled()) return;
+        
+        if (!plugin.brokerVillagers) return;
+        
+        Entity damager = event.getDamager();
+        Entity target = event.getEntity();
+        
+        if (damager instanceof Player && target instanceof Villager) {
+            Player player = (Player)damager;
+            if (!player.hasPermission("broker.admin")) {
+                event.setCancelled(true);
+            }
+        }
+        
     }
     
     private String getPrice(Inventory inv, int slot, String sellerName) {

@@ -30,6 +30,8 @@ public class Broker extends JavaPlugin {
     protected double taxMinimum;
     protected int maxOrders;
     protected int vipMaxOrders;
+    protected boolean brokerVillagers;
+    protected boolean brokerPlayers;
 
     @Override
     public void onEnable() {
@@ -45,6 +47,10 @@ public class Broker extends JavaPlugin {
         config.set("maxOrdersPerPlayer", maxOrders);
         vipMaxOrders = config.getInt("vipMaxOrders", 0);
         config.set("vipMaxOrders", vipMaxOrders);
+        brokerVillagers = config.getBoolean("villagersAreBrokers", true);
+        config.set("villagersAreBrokers", brokerVillagers);
+        brokerPlayers = config.getBoolean("playersAreBrokers", true);
+        config.set("playersAreBrokers", brokerPlayers);
         
         saveConfig();
         

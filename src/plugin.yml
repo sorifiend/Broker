@@ -1,6 +1,6 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 1.3.1
+version: 1.4.0
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
@@ -14,6 +14,7 @@ permissions:
   broker.*:
     description: Access to all areas of Broker
     children:
+      broker.admin: true
       broker.use: true
       broker.commands.buy: true
       broker.commands.sell: true
@@ -21,8 +22,10 @@ permissions:
       broker.sign: true
       broker.sign.personal: true
       broker.sign.personal.others: true
+  broker.admin:
+    description: Admin access to broker
   broker.use:
-    description: Can use the broker (and /broker command)
+    description: Can use the broker
   broker.commands.sell:
     description: Can use the '/broker sell' commands
   broker.commands.buy:
