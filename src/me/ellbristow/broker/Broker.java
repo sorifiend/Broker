@@ -1,5 +1,6 @@
 package me.ellbristow.broker;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,6 +70,14 @@ public class Broker extends JavaPlugin {
             brokerDb.addColumn("BrokerOrders", "perItems INTEGER NOT NULL DEFAULT 1");
         }
         getServer().getPluginManager().registerEvents(new BrokerListener(this), this);
+        
+        try {
+            Metrics metrics = new Metrics(this);
+            metrics.start();
+        } catch (IOException e) {
+            // Failed to submit the stats :-(
+        }
+        
     }
 
     @Override
