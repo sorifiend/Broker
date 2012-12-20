@@ -92,7 +92,7 @@ public class BrokerListener implements Listener {
                         player.sendMessage(ChatColor.GOLD + "Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " ("+each+")");
                         HashMap<Integer,String> slotPrice = new HashMap<Integer,String>();
                         slotPrice.put(slot,price+":"+perItems);
-                        HashMap<ItemStack,String> pending = new HashMap<ItemStack,String>();
+                        final HashMap<ItemStack,String> pending = new HashMap<ItemStack,String>();
                         pending.put(inv.getItem(slot),price+":"+perItems);
                         plugin.pending.put(player.getName(), pending);
                         player.sendMessage("Enter quantity to buy at this price");
@@ -110,14 +110,17 @@ public class BrokerListener implements Listener {
                             @Override
                             public void run () {
                                 if (plugin.pending.containsKey(playerName)) {
-                                    Player runPlayer = plugin.getServer().getPlayer(playerName);
-                                    if (runPlayer != null) {
-                                        runPlayer.sendMessage(ChatColor.RED + "You took too long to specify a quantity. Order Cancelled!");
+                                    HashMap<ItemStack, String> thisPending = plugin.pending.get(playerName);
+                                    if (thisPending.equals(pending)) {
+                                        Player runPlayer = plugin.getServer().getPlayer(playerName);
+                                        if (runPlayer != null) {
+                                            runPlayer.sendMessage(ChatColor.RED + "You took too long to specify a quantity. Order Cancelled!");
+                                        }
+                                        plugin.pending.remove(playerName);
                                     }
-                                    plugin.pending.remove(playerName);
                                 }
                             }
-                        }, 200);
+                        }, 200L);
                     } else {
                         final String playerName = player.getName();
                         plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
@@ -290,7 +293,7 @@ public class BrokerListener implements Listener {
                                 player.sendMessage(ChatColor.RED + "Only " + ChatColor.WHITE + tot + ChatColor.RED + " were available at this price!");
                                 quantity = tot;
                             }
-                            double totPrice = quantity * price;
+                            double totPrice = quantity * price / perItems;
                             if (plugin.vault.economy.getBalance(player.getName()) < totPrice) {
                                 player.sendMessage(ChatColor.RED + "You cannot afford " + quantity + " of those!");
                                 player.sendMessage(ChatColor.RED + "Total Price: " + plugin.vault.economy.format(totPrice));

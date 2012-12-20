@@ -1,13 +1,8 @@
 package me.ellbristow.broker;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
+import java.util.*;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -15,13 +10,14 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.*;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Broker extends JavaPlugin {
     
     private static FileConfiguration config;
-    private String[] tableColumns = {"id", "playerName", "orderType", "timeCode", "itemName", "enchantments", "damage", "price", "quant", "perItems"};
-    private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "DOUBLE NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL DEFAULT 1"};
+    private String[] tableColumns = {"id", "playerName", "orderType", "timeCode", "itemName", "enchantments", "damage", "price", "quant", "perItems", "meta"};
+    private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "DOUBLE NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL DEFAULT 1", "TEXT NOT NULL DEFAULT ''"};
     protected vaultBridge vault;
     protected BrokerDb brokerDb;
     protected HashMap<String,HashMap<ItemStack,String>> pending = new HashMap<String, HashMap<ItemStack,String>>();
@@ -65,9 +61,13 @@ public class Broker extends JavaPlugin {
         brokerDb.getConnection();
         if (!brokerDb.checkTable("BrokerOrders")) {
             brokerDb.createTable("BrokerOrders", tableColumns, tableDims);
-        }
-        if (!brokerDb.tableContainsColumn("BrokerOrders", "perItems")) {
-            brokerDb.addColumn("BrokerOrders", "perItems INTEGER NOT NULL DEFAULT 1");
+        } else {
+            if (!brokerDb.tableContainsColumn("BrokerOrders", "perItems")) {
+                brokerDb.addColumn("BrokerOrders", "perItems INTEGER NOT NULL DEFAULT 1");
+            }
+            if (!brokerDb.tableContainsColumn("BrokerOrders", "meta")) {
+                brokerDb.addColumn("BrokerOrders", "meta TEXT NOT NULL DEFAULT ''");
+            }
         }
         getServer().getPluginManager().registerEvents(new BrokerListener(this), this);
         
@@ -199,7 +199,7 @@ public class Broker extends JavaPlugin {
                         if (perItems <1) {
                             perItems = 1;
                         }
-
+                        
                         // List item for sale
                         int quant = (int)(itemInHand.getAmount() / perItems) * perItems;
                         String itemName = itemInHand.getType().name();
@@ -217,10 +217,34 @@ public class Broker extends JavaPlugin {
                                 enchantmentString += ((Enchantment)ench).getId() + "@" + enchantments.get((Enchantment)ench);
                             }
                         }
+                        String meta = "";
+                        if (itemInHand.hasItemMeta()) {
+                            ItemMeta itemMeta = itemInHand.getItemMeta();
+                            if (itemMeta instanceof BookMeta) {
+                                BookMeta book = (BookMeta)itemMeta;
+                                meta = "BOOK:META:"+book.getTitle() + ":META:" + book.getAuthor()+ ":META:";
+                                String pages = "";
+                                for (String page : book.getPages()) {
+                                    if (!pages.equals("")) {
+                                        pages += ":PAGE:";
+                                    }
+                                    pages += page;
+                                }
+                                meta += pages;
+                            } else if (itemMeta instanceof LeatherArmorMeta) {
+                                LeatherArmorMeta armor = (LeatherArmorMeta)itemMeta;
+                                meta = "ARMOR:META:" + armor.getDisplayName() + ":META:" + armor.getColor().getRed() + ":META:" + armor.getColor().getGreen()  + ":META:" + armor.getColor().getBlue();
+                            } else if (itemMeta instanceof MapMeta) {
+                                MapMeta map = (MapMeta)itemMeta;
+                                meta = "MAP:META:" + map.getDisplayName() + ":META:" + map.isScaling();
+                            } else if (itemMeta.hasDisplayName()) {
+                                meta = "ITEM:META:" + itemMeta.getDisplayName();
+                            }                              
+                        }
                         if (isDamageableItem(itemInHand) && damage != 0) {
                             itemDisplayName += "(Used)";
                         }
-                        String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems) VALUES (0, '" + player.getName() + "', '" + itemName + "', '" + enchantmentString + "', " + damage + ", " + price + ", " + quant + ", " + new Date().getTime() + ", "+perItems+")";
+                        String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (0, '" + player.getName() + "', '" + itemName + "', '" + enchantmentString + "', " + damage + ", " + price + ", " + quant + ", " + new Date().getTime() + ", "+perItems+", '"+meta+"')";
                         brokerDb.query(query);
                         if (itemInHand.getAmount() > quant) {
                             player.getItemInHand().setAmount(player.getItemInHand().getAmount() - quant);
@@ -270,15 +294,15 @@ public class Broker extends JavaPlugin {
             String[] subSplit = pageSplit[0].split(":");
             if (isDamageableItem(new ItemStack(Material.getMaterial(subSplit[0])))) {
                 if (seller == null || seller.equals("")) {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments, meta", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price", "BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0", "price, perItems, damage, enchantments,meta", "price/perItems ASC, damage ASC");
                 }
             } else {
                 if (seller == null || seller.equals("")) {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta","BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments,meta", "price/perItems ASC, damage ASC");
                 } else {
-                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price","BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
+                    sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta","BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = 0 AND damage = "+subSplit[1], "price, perItems, damage, enchantments,meta", "price/perItems ASC, damage ASC");
                 }
             }
             if (sellOrders != null) {
@@ -297,6 +321,32 @@ public class Broker extends JavaPlugin {
                             }
                         }
                         stack.setAmount((Integer)sellOrders.get(i).get("totquant"));
+                        String meta = (String)sellOrders.get(i).get("meta");
+                        if (!meta.equals("")) {
+                            String[] metaSplit = meta.split(":META:");
+                            if (metaSplit[0].equals("BOOK")) {
+                                BookMeta book = (BookMeta)stack.getItemMeta();
+                                book.setTitle(metaSplit[1]);
+                                book.setAuthor(metaSplit[2]);
+                                String[] pages = metaSplit[3].split(":PAGE:");
+                                for (int p = 0; p < pages.length; p++) {
+                                    book.addPage(pages[p]);
+                                }
+                                stack.setItemMeta(book);
+                            } else if (metaSplit[0].equals("ARMOR")) {
+                                LeatherArmorMeta armor = (LeatherArmorMeta)stack.getItemMeta();
+                                armor.setColor(Color.fromRGB(Integer.parseInt(metaSplit[2]), Integer.parseInt(metaSplit[3]), Integer.parseInt(metaSplit[4])));
+                                armor.setDisplayName(metaSplit[1]);
+                                stack.setItemMeta(armor);
+                            } else if (metaSplit[0].equals("MAP")) {
+                                MapMeta map = (MapMeta)stack.getItemMeta();
+                                map.setDisplayName(metaSplit[1]);
+                                map.setScaling(Boolean.parseBoolean(metaSplit[2]));
+                                stack.setItemMeta(map);
+                            } else if (metaSplit[0].equals("ITEM")) {
+                                stack.getItemMeta().setDisplayName(metaSplit[1]);
+                            }
+                        }
                         inv.setItem(added, stack);
                         added++;
                     }
