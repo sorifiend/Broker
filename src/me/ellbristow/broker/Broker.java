@@ -1,7 +1,9 @@
 package me.ellbristow.broker;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -10,7 +12,10 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.*;
+import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Broker extends JavaPlugin {
@@ -233,10 +238,18 @@ public class Broker extends JavaPlugin {
                                 meta += pages;
                             } else if (itemMeta instanceof LeatherArmorMeta) {
                                 LeatherArmorMeta armor = (LeatherArmorMeta)itemMeta;
-                                meta = "ARMOR:META:" + armor.getDisplayName() + ":META:" + armor.getColor().getRed() + ":META:" + armor.getColor().getGreen()  + ":META:" + armor.getColor().getBlue();
+                                meta = "ARMOR:META:";
+                                if (armor.hasDisplayName()) {
+                                    meta += armor.getDisplayName();
+                                }
+                                meta += ":META:" + armor.getColor().getRed() + ":META:" + armor.getColor().getGreen()  + ":META:" + armor.getColor().getBlue();
                             } else if (itemMeta instanceof MapMeta) {
                                 MapMeta map = (MapMeta)itemMeta;
-                                meta = "MAP:META:" + map.getDisplayName() + ":META:" + map.isScaling();
+                                meta = "MAP:META:";
+                                if (map.hasDisplayName()) {
+                                    meta += map.getDisplayName();
+                                }
+                                meta += ":META:" + map.isScaling();
                             } else if (itemMeta.hasDisplayName()) {
                                 meta = "ITEM:META:" + itemMeta.getDisplayName();
                             }                              
@@ -336,11 +349,15 @@ public class Broker extends JavaPlugin {
                             } else if (metaSplit[0].equals("ARMOR")) {
                                 LeatherArmorMeta armor = (LeatherArmorMeta)stack.getItemMeta();
                                 armor.setColor(Color.fromRGB(Integer.parseInt(metaSplit[2]), Integer.parseInt(metaSplit[3]), Integer.parseInt(metaSplit[4])));
-                                armor.setDisplayName(metaSplit[1]);
+                                if (!metaSplit[1].equals("")) {
+                                    armor.setDisplayName(metaSplit[1]);
+                                }
                                 stack.setItemMeta(armor);
                             } else if (metaSplit[0].equals("MAP")) {
                                 MapMeta map = (MapMeta)stack.getItemMeta();
-                                map.setDisplayName(metaSplit[1]);
+                                if (!metaSplit[1].equals("")) {
+                                    map.setDisplayName(metaSplit[1]);
+                                }
                                 map.setScaling(Boolean.parseBoolean(metaSplit[2]));
                                 stack.setItemMeta(map);
                             } else if (metaSplit[0].equals("ITEM")) {
