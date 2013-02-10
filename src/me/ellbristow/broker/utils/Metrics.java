@@ -26,7 +26,7 @@
  * either expressed or implied, of anybody else.
  */
 
-package me.ellbristow.broker;
+package me.ellbristow.broker.utils;
 
 import java.io.*;
 import java.net.Proxy;

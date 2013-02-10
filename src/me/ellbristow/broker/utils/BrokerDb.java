@@ -1,8 +1,9 @@
-package me.ellbristow.broker;
+package me.ellbristow.broker.utils;
 
 import java.io.File;
 import java.sql.*;
 import java.util.HashMap;
+import me.ellbristow.broker.Broker;
 
 public class BrokerDb {
 

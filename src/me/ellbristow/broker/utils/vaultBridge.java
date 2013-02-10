@@ -1,5 +1,6 @@
-package me.ellbristow.broker;
+package me.ellbristow.broker.utils;
 
+import me.ellbristow.broker.Broker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 
