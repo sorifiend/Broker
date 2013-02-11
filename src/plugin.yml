@@ -17,15 +17,17 @@ permissions:
       broker.admin: true
       broker.use: true
       broker.buy.*: true
-      broker.commands.sell: true
-      broker.commands.cancel: true
-      broker.sign: true
-      broker.sign.personal: true
-      broker.sign.personal.others: true
+      broker.commands.*: true
+      broker.sign.*: true
   broker.admin:
     description: Admin access to broker
   broker.use:
     description: Can use the broker
+  broker.commands.*:
+    description: Can use all broker commands
+    children:
+      broker.commands.sell: true
+      broker.commands.buy.*: true
   broker.commands.sell:
     description: Can use the '/broker sell' commands
   broker.buy.*:
@@ -39,11 +41,21 @@ permissions:
     description: Can place Buy Orders
   broker.commands.cancel:
     description: Can use /broker sell cancel
+  broker.sign.*:
+    description: Can create all Broker signs
+    children:
+      broker.sign: true
+      broker.sign.buyorders: true
+      broker.sign.personal: true
+      broker.sign.personal.others: true
   broker.sign:
     description: Admin command to allow creation of broker signs
+  broker.sign.buyorders:
+    description: Can make Broker Buy Orders signs
   broker.sign.personal:
     description: Can make personal Broker signs (own shop)
   broker.sign.personal.others:
     description: Can make personal Broker signs for others
   broker.vip:
     description: Gain VIP access to broker (VIP order max)
+    default: false
