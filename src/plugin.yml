@@ -9,14 +9,14 @@ description: >
              Trade items using an MMO exchange style trade system
 commands:
   broker:
-    description: Broker command help  
+    description: Broker command help
 permissions:
   broker.*:
     description: Access to all areas of Broker
     children:
       broker.admin: true
       broker.use: true
-      broker.commands.buy: true
+      broker.buy.*: true
       broker.commands.sell: true
       broker.commands.cancel: true
       broker.sign: true
@@ -28,8 +28,15 @@ permissions:
     description: Can use the broker
   broker.commands.sell:
     description: Can use the '/broker sell' commands
+  broker.buy.*:
+    description: Can use /broker buy and place Buy Orders
+    children:
+      broker.commands.buy: true
+      broker.commands.buy.orders: true
   broker.commands.buy:
     description: Can use the '/broker buy' commands
+  broker.commands.buy.orders:
+    description: Can place Buy Orders
   broker.commands.cancel:
     description: Can use /broker sell cancel
   broker.sign:
