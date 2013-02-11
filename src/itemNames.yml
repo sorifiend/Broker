@@ -1,0 +1,474 @@
+# Broker Item Aliases
+# 
+# This file contains all aliases used to identify item materials in Broker.
+# Common aliases have been provided, but you can add your own aliases by
+# following the same format below.
+#
+# <alias>:
+#   id: <item ID>
+#   data: <item data/damage>
+# 
+# NOTES:
+# > You do not need to include plural items. Plurals will be checked automatically
+# > alias format must be precise. Spacing is important!
+# > All aliases are case insensitive.
+
+smooth_stone:
+  id: 1
+  data: 0
+cobble:
+  id: 4
+  data: 0
+plank:
+  id: 5
+  data: 0
+oak_plank:
+  id: 5
+  data: 0
+spruce_plank:
+  id: 5
+  data: 1
+birch_planks:
+  id: 5
+  data: 2
+jungle_plank:
+  id: 5
+  data: 3
+oak_sapling:
+  id: 6
+  data: 0
+spruce_sapling:
+  id: 6
+  data: 1
+birch_sapling:
+  id: 6
+  data: 2
+jungle_sapling:
+  id: 6
+  data: 3
+wood:
+  id: 17
+  data: 0
+oak_wood:
+  id: 17
+  data: 0
+spruce_wood:
+  id: 17
+  data: 1
+birch_wood:
+  id: 17
+  data: 2
+jungle_wood:
+  id: 17
+  data: 3
+oak_log:
+  id: 17
+  data: 0
+spruce_log:
+  id: 17
+  data: 1
+birch_log:
+  id: 17
+  data: 2
+jungle_log:
+  id: 17
+  data: 3
+oak_leaves:
+  id: 18
+  data: 0
+spruce_leaves:
+  id: 18
+  data: 1
+birch_leaves:
+  id: 18
+  data: 2
+jungle_leaves:
+  id: 18
+  data: 3
+chiseled_sandstone:
+  id: 24
+  data: 1
+smooth_sandstone:
+  id: 24
+  data: 2
+tall_grass:
+  id: 31
+  data: 1
+fern:
+  id: 31
+  data: 2
+white_wool:
+  id: 35
+  data: 0
+orange_wool:
+  id: 35
+  data: 1
+magenta_wool:
+  id: 35
+  data: 2
+light_blue_wool:
+  id: 35
+  data: 3
+yellow_wool:
+  id: 35
+  data: 4
+lime_wool:
+  id: 35
+  data: 5
+light_green_wool:
+  id: 35
+  data: 5
+pink_wool:
+  id: 35
+  data: 6
+gray_wool:
+  id: 35
+  data: 7
+grey_wool:
+  id: 35
+  data: 7
+light_gray_wool:
+  id: 35
+  data: 8
+light_grey_wool:
+  id: 35
+  data: 8
+cyan_wool:
+  id: 35
+  data: 9
+purple_wool:
+  id: 35
+  data: 10
+blue_wool:
+  id: 35
+  data: 11
+dark_blue_wool:
+  id: 35
+  data: 11
+brown_wool:
+  id: 35
+  data: 12
+green_wool:
+  id: 35
+  data: 13
+dark_green_wool:
+  id: 35
+  data: 13
+red_wool:
+  id: 35
+  data: 14
+black_wool:
+  id: 35
+  data: 15
+dandelion:
+  id: 37
+  data: 0
+rose:
+  id: 38
+  data: 0
+slab:
+  id: 44
+  data: 0
+stone_slab:
+  id: 44
+  data: 0
+sandstone_slab:
+  id: 44
+  data: 1
+cobble_slab:
+  id: 44
+  data: 3
+cobblestone_slab:
+  id: 44
+  data: 3
+brick_slab:
+  id: 44
+  data: 4
+stone_brick_slab:
+  id: 44
+  data: 5
+nether_brick_slab:
+  id: 44
+  data: 6
+quartz_slab:
+  id: 44
+  data: 7
+wooden_slab:
+  id: 126
+  data: 0
+wood_slab:
+  id: 126
+  data: 0
+cobble_stairs:
+  id: 67
+  data: 0
+mossy_stone_brick:
+  id: 98
+  data: 1
+cracked_stone_brick:
+  id: 98
+  data: 2
+chiseled_stone_brick:
+  id: 98
+  data: 3
+cobble_wall:
+  id: 139
+  data: 0
+chiseled_quartz:
+  id: 155
+  data: 1
+vertical_quartz_pillar:
+  id: 155
+  data: 2
+vertical_quartz:
+  id: 155
+  data: 2
+horizontal_quartz_pillar:
+  id: 155
+  data: 3
+horizontal_quartz:
+  id: 155
+  data: 3
+end_quartz:
+  id: 155
+  data: 4
+iron_pick:
+  id: 257
+  data: 0
+charcoal:
+  id: 263
+  data: 1
+wooden_sword:
+  id: 268
+  data: 0
+wooden_shovel:
+  id: 269
+  data: 0
+wooden_pick:
+  id: 270
+  data: 0
+wooden_axe:
+  id: 271
+  data: 0
+stone_pick:
+  id: 274
+  data: 0
+diamond_pick:
+  id: 278
+  data: 0
+gold_pick:
+  id: 285
+  data: 0
+ink_sac:
+  id: 351
+  data: 0
+black_dye:
+  id: 351
+  data: 0
+red_dye:
+  id: 351
+  data: 1
+rose_red:
+  id: 351
+  data: 1
+green_dye:
+  id: 351
+  data: 2
+cactus_green:
+  id: 351
+  data: 2
+brown_dye:
+  id: 351
+  data: 3
+cocoa_beans:
+  id: 351
+  data: 3
+blue_dye:
+  id: 351
+  data: 4
+lapis:
+  id: 351
+  data: 4
+lapis_ore:
+  id: 351
+  data: 4
+lapis_lazuli:
+  id: 351
+  data: 4
+purple_dye:
+  id: 351
+  data: 5
+cyan_dye:
+  id: 351
+  data: 6
+light_gray_dye:
+  id: 351
+  data: 7
+light_grey_dye:
+  id: 351
+  data: 7
+gray_dye:
+  id: 351
+  data: 8
+grey_dye:
+  id: 351
+  data: 8
+pink_dye:
+  id: 351
+  data: 9
+lime_dye:
+  id: 351
+  data: 10
+light_green_dye:
+  id: 351
+  data: 10
+yellow_dye:
+  id: 351
+  data: 11
+dandelion_yellow:
+  id: 351
+  data: 11
+light_blue_dye:
+  id: 351
+  data: 12
+magenta_dye:
+  id: 351
+  data: 13
+orange_dye:
+  id: 351
+  data: 14
+white_dye:
+  id: 351
+  data: 15
+bone_meal:
+  id: 351
+  data: 15
+creeper_egg:
+  id: 383
+  data: 50
+skeleton_egg:
+  id: 383
+  data: 51
+spider_egg:
+  id: 383
+  data: 52
+giant_egg:
+  id: 383
+  data: 53
+zombie_egg:
+  id: 383
+  data: 54
+slime_egg:
+  id: 383
+  data: 55
+ghast_egg:
+  id: 383
+  data: 56
+zombie_pigman_egg:
+  id: 383
+  data: 57
+zombiepigman_egg:
+  id: 383
+  data: 57
+pigman_egg:
+  id: 383
+  data: 57
+pigzombie_egg:
+  id: 383
+  data: 57
+enderman_egg:
+  id: 383
+  data: 58
+cave_spider_egg:
+  id: 383
+  data: 59
+cavespider_egg:
+  id: 383
+  data: 59
+silverfish_egg:
+  id: 383
+  data: 60
+blaze_egg:
+  id: 383
+  data: 61
+magma_cube_egg:
+  id: 383
+  data: 62
+magmacube_egg:
+  id: 383
+  data: 62
+ender_dragon_egg:
+  id: 383
+  data: 63
+wither_egg:
+  id: 383
+  data: 64
+witch_egg:
+  id: 383
+  data: 66
+bat_egg:
+  id: 383
+  data: 65
+pig_egg:
+  id: 383
+  data: 90
+sheep_egg:
+  id: 383
+  data: 91
+cow_egg:
+  id: 383
+  data: 92
+chicken_egg:
+  id: 383
+  data: 93
+squid_egg:
+  id: 383
+  data: 94
+wolf_egg:
+  id: 383
+  data: 95
+mooshroom_egg:
+  id: 383
+  data: 96
+snow_golem_egg:
+  id: 383
+  data: 97
+snowgolem_egg:
+  id: 383
+  data: 97
+snowman_egg:
+  id: 383
+  data: 97
+ocelot_egg:
+  id: 383
+  data: 98
+cat_egg:
+  id: 383
+  data: 98
+iron_golem_egg:
+  id: 383
+  data: 99
+irongolem_egg:
+  id: 383
+  data: 99
+villager_egg:
+  id: 383
+  data: 120
+skeleton_head:
+  id: 397
+  data: 0
+wither_skeleton_head:
+  id: 397
+  data: 1
+witherskeleton_head:
+  id: 397
+  data: 1
+zombie_head:
+  id: 397
+  data: 2
+human_head:
+  id: 397
+  data: 3
+creeper_head:
+  id: 397
+  data: 4
