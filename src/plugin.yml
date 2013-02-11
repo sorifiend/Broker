@@ -1,6 +1,6 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 1.6.0
+version: 1.6.0(wip)
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
@@ -26,10 +26,17 @@ permissions:
   broker.commands.*:
     description: Can use all broker commands
     children:
-      broker.commands.sell: true
+      broker.commands.sell.*: true
       broker.commands.buy.*: true
+  broker.commands.sell.*:
+    description: Can use all /broker sell commands
+    children:
+      broker.sell: true
+      broker.sell.buyorders: true
   broker.commands.sell:
-    description: Can use the '/broker sell' commands
+    description: Can list items using '/broker sell [args]' command
+  broker.commands.sell.buyorders:
+    description: Can view Buy Orders using '/broker sell'
   broker.buy.*:
     description: Can use /broker buy and place Buy Orders
     children:
@@ -38,7 +45,7 @@ permissions:
   broker.commands.buy:
     description: Can use the '/broker buy' commands
   broker.commands.buy.orders:
-    description: Can place Buy Orders
+    description: Can place Buy Orders with '/broker buy'
   broker.commands.cancel:
     description: Can use /broker sell cancel
   broker.sign.*:
