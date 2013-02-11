@@ -39,10 +39,28 @@ public class BrokerListener implements Listener {
         if (event.isCancelled()) return;
         Inventory inv = event.getView().getTopInventory();
         if (inv.getName().startsWith("<Broker>")) {
-            String seller = inv.getName().split(" ")[1];
-            if (!seller.equals("Cancel")) {
+            String seller = "";
+            boolean buyOrders = false;
+            if (inv.getName().equals("<Broker> Buy Orders")) {
+                buyOrders = true;
+            } else if (inv.getName().equals("<Broker> Buy Cancel")) {
+                buyOrders = true;
+                seller = "Cancel";
+            } else if (inv.getName().equals("<Broker> Sell Cancel")) {
+                seller = "Cancel";
+            } else if (inv.getName().equals("<Broker> Buy AdminCancel")) {
+                buyOrders = true;
+                seller = "ADMIN";
+            } else if (inv.getName().equals("<Broker> Sell AdminCancel")) {
+                seller = "ADMIN";
+            } else {
+                seller = inv.getName().split(" ")[1];
+            }
+            if (!seller.equals("Cancel") && !seller.equals("ADMIN")) {
                 if (seller.equals("Buy")) seller = "";
                 Player player = (Player)event.getWhoClicked();
+                Player buyer;
+                buyer = player;
                 int slot = event.getRawSlot();
                 if (slot >= 45 && slot <54) {
                     event.setCancelled(true);
@@ -50,18 +68,18 @@ public class BrokerListener implements Listener {
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, seller).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", buyer, seller, buyOrders).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, seller).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", buyer, seller, buyOrders).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, seller).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), buyer, seller, buyOrders).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -74,7 +92,7 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, seller).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", buyer, seller, buyOrders).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
@@ -88,7 +106,22 @@ public class BrokerListener implements Listener {
                     if (perItems != 1) {
                         each = "for " + perItems;
                     }
-                    if (price != 0.00) {
+                    if (buyOrders) {
+                        player.sendMessage(ChatColor.GOLD + "Buy Order Details:");
+                        player.sendMessage(ChatColor.GOLD + " Max Price Each: " + ChatColor.WHITE + plugin.vault.economy.format(price));
+                        player.sendMessage(ChatColor.GOLD + " Max Quant: " + ChatColor.WHITE + perItems);
+                        player.sendMessage(ChatColor.GOLD + "To sell an item, Try:");
+                        player.sendMessage(" /broker sell [price] {Per # Items}!");
+                        final String playerName = player.getName();
+                        plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                            @Override
+                            public void run() {
+                                Player runPlayer = plugin.getServer().getPlayer(playerName);
+                                runPlayer.closeInventory();
+                                runPlayer.updateInventory();
+                            }
+                        }, 5L);
+                    } else if (price != 0.00) {
                         player.sendMessage(ChatColor.GOLD + "Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " ("+each+")");
                         HashMap<Integer,String> slotPrice = new HashMap<Integer,String>();
                         slotPrice.put(slot,price+":"+perItems);
@@ -139,27 +172,35 @@ public class BrokerListener implements Listener {
                 } else if (slot >= 0 && slot < 54 && event.getCursor() != null) {
                     event.setCancelled(true);
                 }
-            } else if ("<Broker> Cancel".equals(inv.getName())) {
+            } else {
+                
+                // Cancelling Orders
+                
                 Player player = (Player)event.getWhoClicked();
+                
+                if (!seller.equals("ADMIN")) {
+                    seller = player.getName();
+                }
+                
                 int slot = event.getRawSlot();
                 if (slot >= 45 && slot <54) {
                     event.setCancelled(true);
-                    // Clicked nevigation slot
+                    // Clicked navigation slot
                     Material itemType = inv.getItem(slot).getType();
                     if (itemType == Material.BOOK) {
                         // Main Page
-                        inv.setContents(plugin.getBrokerInv("0", player, player.getName()).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player, seller, buyOrders).getContents());
                         player.sendMessage(ChatColor.GOLD + "Main Page");
                     } else if (itemType == Material.PAPER) {
                         // Change Page
                         if (inv.getItem(0).getType() != Material.BOOK) {
                             // On Main Page
-                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, player.getName()).getContents());
+                            inv.setContents(plugin.getBrokerInv((slot-45)+"", player, seller, buyOrders).getContents());
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         } else {
                             // On Sub Page
                             String itemName = inv.getItem(0).getType().name();
-                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, player.getName()).getContents());
+                            inv.setContents(plugin.getBrokerInv(itemName+"::"+(slot-45), player, seller, buyOrders).getContents());
                             player.sendMessage(ChatColor.GOLD + itemName);
                             player.sendMessage(ChatColor.GOLD + "Page " + (slot-44));
                         }
@@ -172,12 +213,19 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, player.getName()).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, seller, buyOrders).getContents());
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
                     // Clicked item on sub-page
                     // Cancel Order
+                    int orderType = 0;
+                    String perItemsString = " AND perItems = ";
+                    if (buyOrders) {
+                        orderType = 1;
+                        perItemsString  = "";
+                    }
+                    
                     event.setCancelled(true);
                     ItemStack stack = inv.getItem(slot);
                     Map<Enchantment, Integer> enchantments = stack.getEnchantments();
@@ -197,29 +245,40 @@ public class BrokerListener implements Listener {
                     String[] priceSplit = priceString.split(":");
                     double price = Double.parseDouble(priceSplit[0]);
                     int perItems = Integer.parseInt(priceSplit[1]);
-                    HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("*","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + " AND perItems = " + perItems,null,null);
+                    if (!buyOrders) {
+                        perItemsString += perItems;
+                    }
+                    HashMap<Integer, HashMap<String, Object>> sellOrders;
+                    if (seller.equals("ADMIN")) {
+                        sellOrders = plugin.brokerDb.select("id, quant","BrokerOrders","orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
+                    } else {
+                        sellOrders = plugin.brokerDb.select("id, quant","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
+                    }
                     int totQuant = 0;
                     for (int i = 0; i < sellOrders.size(); i++) {
                         int orderId = (Integer)sellOrders.get(i).get("id");
                         totQuant += (Integer)sellOrders.get(i).get("quant");
-                        plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + orderId);
+                        String query = "DELETE FROM BrokerOrders WHERE id = " + orderId;
+                        plugin.brokerDb.query(query);
                     }
                     stack.setAmount(totQuant);
                     String itemName = stack.getType().name();
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, player.getName()).getContents());
+                    inv.setContents(plugin.getBrokerInv(itemName+"::0", player, seller, buyOrders).getContents());
                     if (inv.getItem(0) == null) {
-                        inv.setContents(plugin.getBrokerInv("0", player, player.getName()).getContents());
+                        inv.setContents(plugin.getBrokerInv("0", player, seller, buyOrders).getContents());
                     }
                     player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
-                    HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
-                    if (!dropped.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Not all items could fit in your Inventory!");
-                        player.sendMessage(ChatColor.RED + "Look on the floor!");
-                        for (int i = 0; i < dropped.size(); i++) {
-                            player.getWorld().dropItem(player.getLocation(), dropped.get(i));
+                    if (!buyOrders) {
+                        HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
+                        if (!dropped.isEmpty()) {
+                            player.sendMessage(ChatColor.RED + "Not all items could fit in your Inventory!");
+                            player.sendMessage(ChatColor.RED + "Look on the floor!");
+                            for (int i = 0; i < dropped.size(); i++) {
+                                player.getWorld().dropItem(player.getLocation(), dropped.get(i));
+                            }
                         }
                     }
                 } else if (event.isShiftClick() && event.isLeftClick()) {
@@ -404,14 +463,22 @@ public class BrokerListener implements Listener {
         String line3 = event.getLine(3);
         if (line0.equalsIgnoreCase("[Broker]")) {
             Player player = event.getPlayer();
-            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others")) {
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others")  && !player.hasPermission("broker.sign.buyorders")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to create broker signs!");
                 event.getBlock().breakNaturally();
                 return;
             } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others")) {
                 event.setLine(3, player.getName());
-            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others")) && player.hasPermission("broker.sign") && !line3.equals("")) {
-                if (!player.hasPermission("broker.sign.personal.others")) {
+            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others") || player.hasPermission("broker.sign.buyorders") || player.hasPermission("broker.sign")) && !line3.equals("")) {
+                if (line3.equalsIgnoreCase("Buy Orders")) {
+                    if (player.hasPermission("broker.sign.buyorders")) {
+                        event.setLine(3, "Buy Orders");
+                    } else {
+                        player.sendMessage(ChatColor.RED + "You do not have permission to create Broker Buy Order signs!");
+                        event.getBlock().breakNaturally();
+                        return;
+                    }
+                } else if (!player.hasPermission("broker.sign.personal.others")) {
                     event.setLine(3, player.getName());
                 } else {
                     OfflinePlayer target = plugin.getServer().getOfflinePlayer(line3);
@@ -440,19 +507,25 @@ public class BrokerListener implements Listener {
             }
             Sign sign = (Sign)event.getClickedBlock().getState();
             String sellerName = sign.getLine(3);
+            String openString = "<Broker> Main Page";
             if (sellerName.equals("")) {
-                player.openInventory(plugin.getBrokerInv("0", player, null));
+                player.openInventory(plugin.getBrokerInv("0", player, null, false));
             } else {
-                OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
-                if (!seller.hasPlayedBefore()) {
-                    player.sendMessage(ChatColor.RED + "Sorry! This shop appears to be closed!");
-                    event.setCancelled(true);
-                    return;
+                if (!sellerName.equals("Buy Orders")) {
+                    OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
+                    if (!seller.hasPlayedBefore()) {
+                        player.sendMessage(ChatColor.RED + "Sorry! This shop appears to be closed!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    player.openInventory(plugin.getBrokerInv("0", player, seller.getName(), false));
+                } else {
+                    player.openInventory(plugin.getBrokerInv("0", player, "", true));
+                    openString = "<Broker> Buy Orders";
                 }
-                player.openInventory(plugin.getBrokerInv("0", player, seller.getName()));
             }
             plugin.pending.remove(player.getName());
-            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+            player.sendMessage(ChatColor.GOLD + openString);
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
             event.setCancelled(true);
         }
@@ -475,7 +548,7 @@ public class BrokerListener implements Listener {
         
         if (entity instanceof Player && plugin.brokerPlayers) {
             Player target = (Player)entity;
-            Inventory inv = plugin.getBrokerInv("0", player, target.getName());
+            Inventory inv = plugin.getBrokerInv("0", player, target.getName(), false);
             if (inv == null || inv.getItem(0) == null) {
                 player.sendMessage(ChatColor.RED + "This player is not selling anything!");
                 return;
@@ -486,7 +559,7 @@ public class BrokerListener implements Listener {
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
             event.setCancelled(true);
         } else if (entity instanceof Villager && plugin.brokerVillagers) {
-            player.openInventory(plugin.getBrokerInv("0", player, null));
+            player.openInventory(plugin.getBrokerInv("0", player, null, false));
             plugin.pending.remove(player.getName());
             player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
@@ -501,16 +574,20 @@ public class BrokerListener implements Listener {
         if ((event.getBlock().getType().equals(Material.SIGN_POST) || event.getBlock().getType().equals(Material.WALL_SIGN)) && ((Sign)event.getBlock().getState()).getLine(0).equalsIgnoreCase("[Broker]")) {
             String owner = ((Sign)event.getBlock().getState()).getLine(3);
             Player player = event.getPlayer();
-            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal")  && !player.hasPermission("broker.sign.personal.others")) {
+            Sign sign = (Sign)event.getBlock().getState();
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders")) {
                 event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker signs!");
                 event.setCancelled(true);
-                Sign sign = (Sign)event.getBlock().getState();
+                sign.setLine(0, sign.getLine(0));        
+                sign.update();
+            } else if (sign.getLine(3).equals("Buy Orders") && !player.hasPermission("broker.sign.buyorders")) {
+                event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker Buy Order signs!");
+                event.setCancelled(true);
                 sign.setLine(0, sign.getLine(0));        
                 sign.update();
             } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !owner.equalsIgnoreCase(player.getName())) {
                 event.getPlayer().sendMessage(ChatColor.RED + "This is not your sign to break!");
                 event.setCancelled(true);
-                Sign sign = (Sign)event.getBlock().getState();
                 sign.setLine(0, sign.getLine(0));        
                 sign.update();
             }
@@ -544,10 +621,20 @@ public class BrokerListener implements Listener {
         if (sellerName != null && !sellerName.equals("")) {
             sellerString = " AND playerName = '" + sellerName + "'";
         }
-        HashMap<Integer, HashMap<String, Object>> sellOrders = plugin.brokerDb.select("price, perItems", "BrokerOrders", "orderType = 0" + sellerString + " AND itemName = '" + stack.getType().name() + "'", "price, perItems, damage, enchantments", "price/perItems ASC, damage ASC");
-        if (!sellOrders.isEmpty()) {
+        int orderType = 0;
+        String priceOrder = "ASC";
+        String per = "perItems";
+        String perGroup = ", perItems";
+        if (inv.getName().equals("<Broker> Buy Orders") || inv.getName().equals("<Broker> Buy Cancel")) {
+            orderType = 1;
+            priceOrder = "DESC";
+            per = "SUM(quant) AS perItems";
+            perGroup = "";
+        }
+        HashMap<Integer, HashMap<String, Object>> orders = plugin.brokerDb.select("price, " + per, "BrokerOrders", "orderType = " + orderType + sellerString + " AND itemName = '" + stack.getType().name() + "'", "price"+perGroup+", damage, enchantments, meta", "price/perItems "+priceOrder+", damage ASC");
+        if (!orders.isEmpty()) {
             int counter = 0;
-            for (HashMap<String, Object> order : sellOrders.values()) {
+            for (HashMap<String, Object> order : orders.values()) {
                 if (counter == slot) {
                     price = Double.parseDouble(order.get("price")+"");
                     perItems = Integer.parseInt(order.get("perItems")+"");
