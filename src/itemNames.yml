@@ -259,6 +259,21 @@ diamond_pick:
 gold_pick:
   id: 285
   data: 0
+gunpowder:
+  id: 289
+  data: 0
+leather_cap:
+  id: 298
+  data: 0
+leather_hat:
+  id: 298
+  data: 0
+leather_tunic:
+  id: 299
+  data: 0
+leather_pants:
+  id: 300
+  data: 0
 ink_sac:
   id: 351
   data: 0
