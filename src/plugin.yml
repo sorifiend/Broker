@@ -1,6 +1,6 @@
 name: Broker
 main: me.ellbristow.broker.Broker
-version: 1.6.0(wip)
+version: 1.6.0
 author: ellbristow
 database: true
 dev-url: http://dev.bukkit.org/server-mods/broker
