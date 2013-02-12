@@ -790,8 +790,8 @@ public class Broker extends JavaPlugin {
         
         // Fetch Buy Orders        
         HashMap<Integer, HashMap<String, Object>> orders = brokerDb.select("*", "BrokerOrders", "orderType = 1", null, "price DESC, timeCode ASC");
-        for (int orderId : orders.keySet()) {
-            HashMap<String, Object> order = orders.get(orderId);
+        for (int i = 0; i < orders.size(); i++) {
+            HashMap<String, Object> order = orders.get(i);
             int id = Integer.parseInt(order.get("id").toString());
             String buyerName = (String)order.get("playerName");
             Material mat = Material.getMaterial(order.get("itemName").toString());
@@ -806,8 +806,8 @@ public class Broker extends JavaPlugin {
             // Match Sell Orders
             HashMap<Integer, HashMap<String, Object>> sellOrders = brokerDb.select("id, playerName, quant, price, perItems, meta", "BrokerOrders", "orderType = 0 AND itemName = '"+mat+"' AND damage = " + damage + " AND price/perItems <= " + price + " AND enchantments = '' AND meta = ''", null, "price/perItems ASC, timeCode ASC");
             
-            for (Integer sellOrderId : sellOrders.keySet()) {
-                HashMap<String, Object> sellOrder = sellOrders.get(sellOrderId);
+            for (int x = 0; x < sellOrders.size(); x++) {
+                HashMap<String, Object> sellOrder = sellOrders.get(x);
                 int sid = Integer.parseInt(sellOrder.get("id").toString());
                 String sellerName = (String)sellOrder.get("playerName");
                 int squant = Integer.parseInt(sellOrder.get("quant").toString());
