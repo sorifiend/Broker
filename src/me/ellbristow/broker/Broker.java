@@ -789,7 +789,7 @@ public class Broker extends JavaPlugin {
     protected void matchBuyOrders() {
         
         // Fetch Buy Orders        
-        HashMap<Integer, HashMap<String, Object>> orders = brokerDb.select("*", "BrokerOrders", "orderType = 1", null, "price ASC, timeCode ASC");
+        HashMap<Integer, HashMap<String, Object>> orders = brokerDb.select("*", "BrokerOrders", "orderType = 1", null, "price DESC, timeCode ASC");
         for (int orderId : orders.keySet()) {
             HashMap<String, Object> order = orders.get(orderId);
             int id = Integer.parseInt(order.get("id").toString());
