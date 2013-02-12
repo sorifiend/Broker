@@ -25,8 +25,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class Broker extends JavaPlugin {
 
     private static FileConfiguration config;
-    private String[] tableColumns = {"id", "playerName", "orderType", "timeCode", "itemName", "enchantments", "damage", "displayName", "lore", "price", "quant", "perItems", "meta", "serialized"};
-    private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "TEXT NOT NULL DEFAULT ''", "TEXT NOT NULL DEFAULT ''", "DOUBLE NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL DEFAULT 1", "TEXT NOT NULL DEFAULT ''", "TEXT NOT NULL"};
+    private String[] tableColumns = {"id", "playerName", "orderType", "timeCode", "itemName", "enchantments", "damage", "price", "quant", "perItems", "meta"};
+    private String[] tableDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL", "TEXT NOT NULL", "TEXT", "INTEGER NOT NULL DEFAULT 0", "DOUBLE NOT NULL", "INTEGER NOT NULL", "INTEGER NOT NULL DEFAULT 1", "TEXT NOT NULL DEFAULT ''"};
+    private String[] pendingColumns = {"id", "playerName", "itemName", "damage", "quant"};
+    private String[] pendingDims = {"INTEGER PRIMARY KEY ASC AUTOINCREMENT", "TEXT NOT NULL", "TEXT NOT NULL", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 1"};
     protected vaultBridge vault;
     protected BrokerDb brokerDb;
     protected HashMap<String, HashMap<ItemStack, String>> pending = new HashMap<String, HashMap<ItemStack, String>>();
@@ -82,6 +84,10 @@ public class Broker extends JavaPlugin {
             if (config.getString("version") == null) {
                 convertMeta();
             }
+        }
+        
+        if (!brokerDb.checkTable("BrokerPending")) {
+            brokerDb.createTable("BrokerPending", pendingColumns, pendingDims);
         }
 
         config.set("version", getDescription().getVersion());
@@ -279,6 +285,9 @@ public class Broker extends JavaPlugin {
                             } else {
                                 player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice));
                             }
+                            
+                            matchBuyOrders();
+                            
                             return true;
 
                         }
@@ -377,8 +386,11 @@ public class Broker extends JavaPlugin {
                             }
                         }
 
-                        ItemMeta itemMeta = itemInHand.getItemMeta();
-                        String meta = ItemSerialization.saveMeta(itemMeta).replace("'", "\\'");
+                        String meta = "";
+                        if (itemInHand.hasItemMeta()) {
+                            ItemMeta itemMeta = itemInHand.getItemMeta();
+                            meta = ItemSerialization.saveMeta(itemMeta).replace("'", "\\'");
+                        }
 
                         if (isDamageableItem(itemInHand) && damage != 0) {
                             itemDisplayName += "(Used)";
@@ -394,6 +406,9 @@ public class Broker extends JavaPlugin {
                         }
                         player.sendMessage(quant + " x " + itemDisplayName);
                         player.sendMessage(ChatColor.GOLD + " listed for sale for " + ChatColor.GREEN + vault.economy.format(price) + ChatColor.GOLD + " " + each + "!");
+                        
+                        matchBuyOrders();
+                        
                     }
                     return true;
                 } else {
@@ -634,7 +649,10 @@ public class Broker extends JavaPlugin {
                     stack.getItemMeta().setDisplayName(metaSplit[1]);
                 }
             }
-            String itemMeta = ItemSerialization.saveMeta(stack.getItemMeta()).replace("'", "\\'");
+            String itemMeta = "";
+            if (stack.hasItemMeta()) {
+                itemMeta = ItemSerialization.saveMeta(stack.getItemMeta()).replace("'", "\\'");
+            }
             brokerDb.query("UPDATE BrokerOrders SET meta = '" + itemMeta + "' WHERE id = " + id);
         }
         getLogger().info("Database converted to Broker 1.6.0 format!");
@@ -675,9 +693,7 @@ public class Broker extends JavaPlugin {
     private ItemStack checkMaterial(String itemName) {
 
         ItemStack item = null;
-
         short damage = 0;
-
         itemName = itemName.toLowerCase();
 
         if (itemName.contains(":")) {
@@ -689,10 +705,8 @@ public class Broker extends JavaPlugin {
             try {
                 damage = Short.parseShort(split[1]);
             } catch (NumberFormatException ex) {
-
                 // Failed to match damage modifier
                 damage = 0;
-
             }
 
             itemName = split[0];
@@ -704,7 +718,6 @@ public class Broker extends JavaPlugin {
             // Attempt match numerical Item ID
 
             int itemId = Integer.parseInt(itemName);
-
             Material mat = Material.getMaterial(itemId);
 
             if (mat != null) {
@@ -723,7 +736,6 @@ public class Broker extends JavaPlugin {
                 if (itemName.endsWith("s")) {
                     // Remove trailing s
                     itemName = itemName.substring(0, itemName.length() - 1);
-                    getLogger().info(itemName);
                     // Try again
                     mat = Material.matchMaterial(itemName);
                     if (mat == null) {
@@ -773,4 +785,142 @@ public class Broker extends JavaPlugin {
         return item;
 
     }
+    
+    protected void matchBuyOrders() {
+        
+        // Fetch Buy Orders        
+        HashMap<Integer, HashMap<String, Object>> orders = brokerDb.select("*", "BrokerOrders", "orderType = 1", null, "price ASC, timeCode ASC");
+        for (int orderId : orders.keySet()) {
+            HashMap<String, Object> order = orders.get(orderId);
+            int id = Integer.parseInt(order.get("id").toString());
+            String buyerName = (String)order.get("playerName");
+            Material mat = Material.getMaterial(order.get("itemName").toString());
+            short damage = Short.parseShort(order.get("damage").toString());
+            double price = Double.parseDouble(order.get("price").toString());
+            int quant = Integer.parseInt(order.get("quant").toString());
+            
+            int startQuant = quant;
+            double budget = price * quant;
+            double paid = 0;
+            
+            // Match Sell Orders
+            HashMap<Integer, HashMap<String, Object>> sellOrders = brokerDb.select("id, playerName, quant, price, perItems, meta", "BrokerOrders", "orderType = 0 AND itemName = '"+mat+"' AND damage = " + damage + " AND price/perItems <= " + price + " AND enchantments = '' AND meta = ''", null, "price/perItems ASC, timeCode ASC");
+            
+            for (Integer sellOrderId : sellOrders.keySet()) {
+                HashMap<String, Object> sellOrder = sellOrders.get(sellOrderId);
+                int sid = Integer.parseInt(sellOrder.get("id").toString());
+                String sellerName = (String)sellOrder.get("playerName");
+                int squant = Integer.parseInt(sellOrder.get("quant").toString());
+                double sprice = Double.parseDouble(sellOrder.get("price").toString());
+                int perItems = Integer.parseInt(sellOrder.get("perItems").toString());
+                double itemPrice = sprice/perItems;
+                
+                int thisSale = 0;
+                if (perItems <= quant) {
+                    if (squant <= quant) {
+                        quant -= squant;
+                        thisSale += squant;
+                    } else {
+                        int items = 0;
+                        while (items + perItems <= quant) {
+                            items += perItems;
+                        }
+                        quant -= items;
+                        thisSale += items;
+                    }
+                }
+                
+                if (thisSale != 0) {
+                    if (thisSale == squant) {
+                        brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + sid);
+                    } else {
+                        brokerDb.query("UPDATE BrokerOrders SET quant = " + (squant - thisSale) + " WHERE id = " + sid);
+                    }
+                    
+                    double thisPrice = itemPrice * thisSale;
+                    paid += thisPrice;
+                    double fee = 0;
+                    if (taxRate != 0) {
+                        if (taxIsPercentage) {
+                            fee = thisPrice / 100 * taxRate;
+                        } else {
+                            fee = taxRate;
+                        }
+                    }
+                    
+                    vault.economy.depositPlayer(sellerName, thisPrice - fee);
+                    
+                    OfflinePlayer seller = Bukkit.getOfflinePlayer(sellerName);
+                    if (seller.isOnline()) {
+                        seller.getPlayer().sendMessage(buyerName + ChatColor.GOLD + " bought " + ChatColor.WHITE + thisSale + " " + mat + ChatColor.GOLD + " for " + ChatColor.WHITE + vault.economy.format(thisPrice));
+                        if (fee != 0) {
+                            seller.getPlayer().sendMessage(ChatColor.GOLD + "You were charged a broker fee of " + ChatColor.WHITE + vault.economy.format(fee));
+                        }
+                    }
+                }
+                
+            }
+            
+            int bought = startQuant - quant;
+            OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
+            if (bought != 0) {
+                // Some items have sold
+                if (buyer.isOnline()) {
+                    Player onlineBuyer = buyer.getPlayer();
+                    onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + bought + " " + mat + ChatColor.GOLD + "!");
+                    ItemStack stack = new ItemStack(mat);
+                    stack.setAmount(bought);
+                    stack.setDurability(damage);
+                    HashMap<Integer, ItemStack> dropped = onlineBuyer.getInventory().addItem(stack);
+                    if (!dropped.isEmpty()) {
+                        for (ItemStack dropStack : dropped.values()) {
+                            onlineBuyer.getWorld().dropItem(onlineBuyer.getLocation(), dropStack);
+                        }
+                        onlineBuyer.sendMessage(ChatColor.RED + "Not all bought items fit in your inventory! Check the floor!");
+                    }
+                } else {
+                    // Add to pending sales
+                    brokerDb.query("INSERT INTO BrokerPending (playerName, itemName, damage, quant) VALUES ('"+buyerName+"', '"+mat+"', "+damage+", "+bought+")");
+                }
+            }
+            
+            if (quant == 0) {
+                // Refund any excess funds
+                double refund = budget - paid;
+                if (taxOnBuyOrders) {
+                    if (taxIsPercentage) {
+                        refund += refund / 100 * taxRate;
+                    }
+                }
+                if (refund != 0) {
+                    vault.economy.depositPlayer(buyerName, refund);
+                    if (buyer.isOnline()) {
+                        buyer.getPlayer().sendMessage(ChatColor.GOLD + "You were refunded " + ChatColor.WHITE + vault.economy.format(refund));
+                    }
+                }
+                
+                // Close Buy Order
+                brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + id);
+            } else {
+                // Update Buy Order
+                brokerDb.query("UPDATE BrokerOrders SET quant = " + quant + " WHERE id = " + id);
+                
+                double refund = (price * bought) - paid;
+                if (taxOnBuyOrders) {
+                    if (taxIsPercentage) {
+                        refund += refund / 100 * taxRate;
+                    }
+                }
+                if (refund != 0) {
+                    vault.economy.depositPlayer(buyerName, refund);
+                    if (buyer.isOnline()) {
+                        buyer.getPlayer().sendMessage(ChatColor.GOLD + "You were refunded " + ChatColor.WHITE + vault.economy.format(refund));
+                    }
+                }
+            }
+            
+        }
+        
+    }
+    
 }

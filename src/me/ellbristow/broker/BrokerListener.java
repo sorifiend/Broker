@@ -24,6 +24,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -114,7 +115,7 @@ public class BrokerListener implements Listener {
                         player.sendMessage(ChatColor.GOLD + "To sell an item, Try:");
                         player.sendMessage(" /broker sell [price] {Per # Items}!");
                         final String playerName = player.getName();
-                        plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
                             @Override
                             public void run() {
                                 Player runPlayer = plugin.getServer().getPlayer(playerName);
@@ -132,7 +133,7 @@ public class BrokerListener implements Listener {
                         player.sendMessage("Enter quantity to buy at this price");
                         player.sendMessage("(Enter 0 to cancel)");
                         final String playerName = player.getName();
-                        plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
                             @Override
                             public void run() {
                                 Player runPlayer = plugin.getServer().getPlayer(playerName);
@@ -140,7 +141,7 @@ public class BrokerListener implements Listener {
                                 runPlayer.updateInventory();
                             }
                         }, 5L);
-                        plugin.getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
+                        plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, new Runnable() {
                             @Override
                             public void run () {
                                 if (plugin.pending.containsKey(playerName)) {
@@ -157,7 +158,7 @@ public class BrokerListener implements Listener {
                         }, 200L);
                     } else {
                         final String playerName = player.getName();
-                        plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
                         @Override
                         public void run() {
                                 Player runPlayer = plugin.getServer().getPlayer(playerName);
@@ -684,6 +685,31 @@ public class BrokerListener implements Listener {
             }
         }
         return price+":"+perItems;
+    }
+    
+    @EventHandler (priority = EventPriority.NORMAL)
+    public void onPlayerLogin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        HashMap<Integer, HashMap<String, Object>> orders = plugin.brokerDb.select("*", "BrokerPending", "playerName = '"+player.getName()+"'", null, null);
+        if (!orders.isEmpty()) {
+            for (Integer orderId : orders.keySet()) {
+                HashMap<String, Object> order = orders.get(orderId);
+                Material mat = Material.getMaterial(order.get("itemName").toString());
+                ItemStack stack = new ItemStack(mat);
+                short damage = Short.parseShort(order.get("damage").toString());
+                stack.setDurability(damage);
+                int quant = Integer.parseInt(order.get("quant").toString());
+                stack.setAmount(quant);
+                player.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + quant + " " + mat + ChatColor.GOLD + "!");
+                HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
+                if (!dropped.isEmpty()) {
+                    for (ItemStack dropStack : dropped.values()) {
+                        player.getWorld().dropItem(player.getLocation(), dropStack);
+                    }
+                    player.sendMessage(ChatColor.RED + "Not all bought items fit in your inventory! Check the floor!");
+                }
+            }
+        }
     }
     
 }
