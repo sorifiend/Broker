@@ -65,11 +65,14 @@ permissions:
     description: Can create all Broker signs
     children:
       broker.sign: true
+      broker.sign.autosell: true
       broker.sign.buyorders: true
       broker.sign.personal: true
       broker.sign.personal.others: true
   broker.sign:
     description: Admin command to allow creation of broker signs
+  broker.sign.autosell:
+    description: Can make Broker Auto Sell signs
   broker.sign.buyorders:
     description: Can make Broker Buy Orders signs
   broker.sign.personal:
