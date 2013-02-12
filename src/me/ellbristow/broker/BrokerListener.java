@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -241,23 +242,47 @@ public class BrokerListener implements Listener {
                         }
                         enchantmentString += "'";
                     }
-                    String priceString = getPrice(inv, slot, player.getName());
+                    String priceString;
+                    if (seller.equals("ADMIN")) {
+                        priceString = getPrice(inv, slot, "ADMIN");
+                    } else {
+                        priceString = getPrice(inv, slot, player.getName());
+                    }
                     String[] priceSplit = priceString.split(":");
                     double price = Double.parseDouble(priceSplit[0]);
                     int perItems = Integer.parseInt(priceSplit[1]);
                     if (!buyOrders) {
                         perItemsString += perItems;
                     }
-                    HashMap<Integer, HashMap<String, Object>> sellOrders;
+                    HashMap<Integer, HashMap<String, Object>> orders;
                     if (seller.equals("ADMIN")) {
-                        sellOrders = plugin.brokerDb.select("id, quant","BrokerOrders","orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
+                        orders = plugin.brokerDb.select("id, quant, playerName","BrokerOrders","orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
                     } else {
-                        sellOrders = plugin.brokerDb.select("id, quant","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
+                        orders = plugin.brokerDb.select("id, quant, playerName","BrokerOrders","playerName = '" + player.getName() + "' AND orderType = "+orderType+" AND itemName = '" + stack.getType().name() + "' AND damage = " + stack.getDurability() + enchantmentString + " AND price = " + price + perItemsString,null,null);
                     }
                     int totQuant = 0;
-                    for (int i = 0; i < sellOrders.size(); i++) {
-                        int orderId = (Integer)sellOrders.get(i).get("id");
-                        totQuant += (Integer)sellOrders.get(i).get("quant");
+                    HashMap<String, Double> refunds = new HashMap<String,Double>();
+                    for (int i = 0; i < orders.size(); i++) {
+                        int orderId = (Integer)orders.get(i).get("id");
+                        int quant = (Integer)orders.get(i).get("quant");
+                        totQuant += quant;
+                        String buyerName = (String)orders.get(i).get("playerName");
+                        
+                        double thisRefund = quant * price;
+                        if (plugin.taxOnBuyOrders && thisRefund >= plugin.taxMinimum) {
+                            if (plugin.taxIsPercentage) {
+                                thisRefund += thisRefund / 100 * plugin.taxRate;
+                            } else {
+                                thisRefund += plugin.taxRate;
+                            }
+                        }
+                        
+                        if (refunds.containsKey(buyerName)) {
+                            double oldRefund = refunds.get(buyerName);
+                            refunds.put(buyerName, oldRefund + thisRefund);
+                        } else {
+                            refunds.put(buyerName, thisRefund);
+                        }
                         String query = "DELETE FROM BrokerOrders WHERE id = " + orderId;
                         plugin.brokerDb.query(query);
                     }
@@ -270,7 +295,23 @@ public class BrokerListener implements Listener {
                     if (inv.getItem(0) == null) {
                         inv.setContents(plugin.getBrokerInv("0", player, seller, buyOrders).getContents());
                     }
-                    player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
+                    if (buyOrders) {
+                        if (seller.equals("ADMIN")) {
+                            player.sendMessage(ChatColor.GOLD + "Buy Order(s) Cancelled");
+                        }
+                        for (String buyerName : refunds.keySet()) {
+                            OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
+                            double refund = refunds.get(buyerName);
+                            plugin.vault.economy.depositPlayer(buyerName, refund);
+                            if (buyer.isOnline()) {
+                                buyer.getPlayer().sendMessage(ChatColor.GOLD + "Buy Order Cancelled");
+                                buyer.getPlayer().sendMessage(ChatColor.GRAY + "You were refunded " + ChatColor.WHITE + plugin.vault.economy.format(refund));
+                            }
+                            
+                        }
+                    } else {
+                        player.sendMessage(ChatColor.GOLD + "Sell Order Cancelled");
+                    }
                     if (!buyOrders) {
                         HashMap<Integer, ItemStack> dropped = player.getInventory().addItem(stack);
                         if (!dropped.isEmpty()) {
@@ -618,14 +659,14 @@ public class BrokerListener implements Listener {
         int perItems = 1;
         ItemStack stack = inv.getItem(slot);
         String sellerString = "";
-        if (sellerName != null && !sellerName.equals("")) {
+        if (sellerName != null && !sellerName.equals("") && !sellerName.equals("ADMIN")) {
             sellerString = " AND playerName = '" + sellerName + "'";
         }
         int orderType = 0;
         String priceOrder = "ASC";
         String per = "perItems";
         String perGroup = ", perItems";
-        if (inv.getName().equals("<Broker> Buy Orders") || inv.getName().equals("<Broker> Buy Cancel")) {
+        if (inv.getName().equals("<Broker> Buy Orders") || inv.getName().equals("<Broker> Buy Cancel") || inv.getName().equals("<Broker> Buy AdminCancel")) {
             orderType = 1;
             priceOrder = "DESC";
             per = "SUM(quant) AS perItems";

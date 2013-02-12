@@ -33,6 +33,7 @@ public class Broker extends JavaPlugin {
     protected double taxRate;
     protected boolean taxIsPercentage;
     protected double taxMinimum;
+    protected boolean taxOnBuyOrders;
     protected int maxOrders;
     protected int vipMaxOrders;
     protected boolean brokerVillagers;
@@ -49,6 +50,8 @@ public class Broker extends JavaPlugin {
         config.set("taxIsPercentage", taxIsPercentage);
         taxMinimum = config.getDouble("minimumTaxable", 0.0);
         config.set("minimumTaxable", taxMinimum);
+        taxOnBuyOrders = config.getBoolean("taxOnBuyOrders", true);
+        config.set("taxOnBuyOrders", taxOnBuyOrders);
         maxOrders = config.getInt("maxOrdersPerPlayer", 0);
         config.set("maxOrdersPerPlayer", maxOrders);
         vipMaxOrders = config.getInt("vipMaxOrders", 0);
@@ -123,7 +126,7 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GOLD + "/broker buy {Seller Name}" + ChatColor.GRAY + ": Open the broker window to buy items");
                 }
                 if (sender.hasPermission("broker.commands.buy.orders")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy [Item Name:ID] [Quantity] [Max Price Each]");
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy [Item Name:ID{:data}] [Quantity] [Max Price Each]");
                     sender.sendMessage(ChatColor.GRAY + " Place a Buy Order");
                     sender.sendMessage(ChatColor.GOLD + "/broker buy cancel" + ChatColor.GRAY + ": Cancel a Buy Order");
                 }
@@ -214,34 +217,69 @@ public class Broker extends JavaPlugin {
                             
                             int quant;
                             try {
-                                quant = Integer.parseInt(args[2]);
-                                
-                                if (quant == 0) {
-                                    player.sendMessage(ChatColor.RED + "Quantity cannot be 0!");
-                                    player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
-                                    return false;
-                                }
-                                
+                                quant = Integer.parseInt(args[2]);                                
                             } catch (NumberFormatException ex) {
                                 player.sendMessage(ChatColor.RED + "Quantity must be a number!");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
                                 return false;
                             }
                             
-                            float price;
+                            if (quant <= 0) {
+                                player.sendMessage(ChatColor.RED + "Quantity must be greater than 0!");
+                                player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                return false;
+                            }
+                            
+                            double price;
                             try {
-                                price = Float.parseFloat(args[3]);
+                                price = Double.parseDouble(args[3]);
                             } catch (NumberFormatException ex) {
                                 player.sendMessage(ChatColor.RED + "Max Price Each must be a number!");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
                                 return false;
                             }
+                            
+                            if (price <= 0) {
+                                player.sendMessage(ChatColor.RED + "Max Price Each must be greater than 0!");
+                                player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                return false;
+                            }
 
-                            // Format correct, add order
+                            // Format correct, Check Balance
+                            
+                            double fee = 0;
+                            double totPrice = price * quant;
+                            
+                            if (taxOnBuyOrders && totPrice >= taxMinimum) {
+                                if (taxIsPercentage) {
+                                    fee = totPrice / 100 * taxRate;
+                                } else {
+                                    fee = taxRate;
+                                }
+                            }
+                            
+                            if (vault.economy.getBalance(player.getName()) < totPrice + fee) {
+                                player.sendMessage(ChatColor.RED + "You cannot afford to place that Buy Order!");
+                                player.sendMessage(ChatColor.GRAY + "Item Cost: " + vault.economy.format(totPrice));
+                                if (fee != 0) {
+                                    player.sendMessage(ChatColor.GRAY + "Buy Order Fee: " + vault.economy.format(fee));
+                                    player.sendMessage(ChatColor.GRAY + "Total Cost: " + vault.economy.format(totPrice + fee));
+                                }
+                                return true;
+                            }
+                            
+                            // Add Order
 
                             String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (1, '" + player.getName() + "', '" + item.getType() + "', '', " + item.getDurability() + ", " + price + ", " + quant + ", " + new Date().getTime() + ", 1, '')";
                             brokerDb.query(query);
                             player.sendMessage(ChatColor.GOLD  + "Buy Order for "+item.getType()+" placed!");
+                            vault.economy.withdrawPlayer(player.getName(), totPrice + fee);
+                            if (fee != 0) {
+                                player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice + fee) + " (including fee of "+vault.economy.format(fee)+")");
+                            } else {
+                                player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice));
+                            }
+                            return true;
 
                         }
                     } else {
@@ -680,24 +718,41 @@ public class Broker extends JavaPlugin {
             Material mat = Material.matchMaterial(itemName);
 
             if (mat == null) {
-
-                // Attempt match to item alias
-
-                if (itemAliases.containsKey(itemName)) {
-                    Object[] alias = itemAliases.get(itemName);
-                    item = new ItemStack((Material) alias[0]);
-                    if ((Short) alias[1] != 0) {
-                        damage = (Short) alias[1];
-                    }
-                } else if (itemName.endsWith("s")) {
+                
+                // Try removing any trailing s
+                if (itemName.endsWith("s")) {
                     // Remove trailing s
-                    itemName = itemName.substring(0, itemName.length() - 2);
+                    itemName = itemName.substring(0, itemName.length() - 1);
+                    getLogger().info(itemName);
                     // Try again
+                    mat = Material.matchMaterial(itemName);
+                    if (mat == null) {
+                        itemName += "s";
+                    } else {
+                        item = new ItemStack(mat);
+                    }
+                }
+                
+                if (item == null) {
+                    
+                    // Attempt match to item alias
+
                     if (itemAliases.containsKey(itemName)) {
                         Object[] alias = itemAliases.get(itemName);
                         item = new ItemStack((Material) alias[0]);
                         if ((Short) alias[1] != 0) {
                             damage = (Short) alias[1];
+                        }
+                    } else if (itemName.endsWith("s")) {
+                        // Remove trailing s
+                        itemName = itemName.substring(0, itemName.length() - 1);
+                        // Try again
+                        if (itemAliases.containsKey(itemName)) {
+                            Object[] alias = itemAliases.get(itemName);
+                            item = new ItemStack((Material) alias[0]);
+                            if ((Short) alias[1] != 0) {
+                                damage = (Short) alias[1];
+                            }
                         }
                     }
                 }
