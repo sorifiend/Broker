@@ -505,18 +505,26 @@ public class BrokerListener implements Listener {
         String line3 = event.getLine(3);
         if (line0.equalsIgnoreCase("[Broker]")) {
             Player player = event.getPlayer();
-            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others")  && !player.hasPermission("broker.sign.buyorders")) {
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to create broker signs!");
                 event.getBlock().breakNaturally();
                 return;
-            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others")) {
+            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell")) {
                 event.setLine(3, player.getName());
-            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others") || player.hasPermission("broker.sign.buyorders") || player.hasPermission("broker.sign")) && !line3.equals("")) {
-                if (line3.equalsIgnoreCase("Buy Orders")) {
+            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others") || player.hasPermission("broker.sign.buyorders") || player.hasPermission("broker.sign.autosell") || player.hasPermission("broker.sign")) && !line3.equals("")) {
+                if (line3.equalsIgnoreCase("Buy Orders") || line3.equalsIgnoreCase("BuyOrders")) {
                     if (player.hasPermission("broker.sign.buyorders")) {
                         event.setLine(3, "Buy Orders");
                     } else {
                         player.sendMessage(ChatColor.RED + "You do not have permission to create Broker Buy Order signs!");
+                        event.getBlock().breakNaturally();
+                        return;
+                    }
+                } else if (line3.equalsIgnoreCase("Auto Sell") || line3.equalsIgnoreCase("AutoSell")) {
+                    if (player.hasPermission("broker.sign.autosell")) {
+                        event.setLine(3, "Auto Sell");
+                    } else {
+                        player.sendMessage(ChatColor.RED + "You do not have permission to create Broker Auto Sell signs!");
                         event.getBlock().breakNaturally();
                         return;
                     }
@@ -553,7 +561,7 @@ public class BrokerListener implements Listener {
             if (sellerName.equals("")) {
                 player.openInventory(plugin.getBrokerInv("0", player, null, false));
             } else {
-                if (!sellerName.equals("Buy Orders")) {
+                if (!sellerName.equals("Buy Orders") && !sellerName.equals("Auto Sell")) {
                     OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
                     if (!seller.hasPlayedBefore()) {
                         player.sendMessage(ChatColor.RED + "Sorry! This shop appears to be closed!");
@@ -561,9 +569,97 @@ public class BrokerListener implements Listener {
                         return;
                     }
                     player.openInventory(plugin.getBrokerInv("0", player, seller.getName(), false));
-                } else {
+                } else if (sellerName.equals("Buy Orders")) {
                     player.openInventory(plugin.getBrokerInv("0", player, "", true));
                     openString = "<Broker> Buy Orders";
+                } else if (sellerName.equals("Auto Sell")) {
+                    // Attempt Auto Sell
+                    ItemStack stack = player.getItemInHand();
+                    if (stack == null || stack.getType().equals(Material.AIR)) {
+                        player.sendMessage(ChatColor.RED + "You are not holding anything to Auto Sell!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    if (!stack.getEnchantments().isEmpty() || stack.hasItemMeta()) {
+                        player.sendMessage(ChatColor.RED + "You cannot Auto Sell items with enchantments or with ItemMeta data!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    HashMap<Integer, HashMap<String, Object>> buyOrders = plugin.brokerDb.select("id, playerName, price, quant, perItems", "BrokerOrders", "orderType = 1 AND itemName = '"+stack.getType()+"' AND damage = " + stack.getDurability() + " AND enchantments = '' AND meta = ''", null, "price/perItems DESC, timeCode ASC");
+                    if (buyOrders.isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "No valid Buy Orders were found for that item!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    // Orders Found
+                    int sold = 0;
+                    int cost = 0;
+                    for (Integer buyOrderId : buyOrders.keySet()) {
+                        HashMap<String, Object> buyOrder = buyOrders.get(buyOrderId);
+                        int id = Integer.parseInt(buyOrder.get("id").toString());
+                        String buyerName = (String)buyOrder.get("playerName");
+                        double price = Double.parseDouble(buyOrder.get("price").toString());
+                        int quant = Integer.parseInt(buyOrder.get("quant").toString());
+                        int perItems = Integer.parseInt(buyOrder.get("perItems").toString());
+                        double itemPrice = price / perItems;
+                        
+                        int thisSale = 0;
+                        ItemStack boughtStack = stack.clone();
+                        
+                        if (perItems <= stack.getAmount()) {
+                            if (quant <= stack.getAmount()) {
+                                thisSale += quant;
+                                plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + id);
+                            } else {
+                                while (thisSale + perItems <= stack.getAmount()) {
+                                    thisSale += perItems;
+                                }
+                                plugin.brokerDb.query("UPDATE BrokerOrders SET quant = "+(quant-thisSale)+" WHERE id = " + id);
+                            }
+                        }
+                        
+                        if (thisSale != 0) {
+                            sold += thisSale;
+                            boughtStack.setAmount(thisSale);
+                            double thisCost = boughtStack.getAmount() * itemPrice;
+                            cost += thisCost;
+                            OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
+                            if (buyer.isOnline()) {
+                                Player onlineBuyer = buyer.getPlayer();
+                                onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + boughtStack.getAmount() + " " + boughtStack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(thisCost));
+                                HashMap<Integer, ItemStack> dropped = onlineBuyer.getInventory().addItem(boughtStack);
+                                if (!dropped.isEmpty()) {
+                                    for (ItemStack dropStack : dropped.values()) {
+                                        onlineBuyer.getWorld().dropItem(onlineBuyer.getLocation(), dropStack);
+                                    }
+                                    onlineBuyer.sendMessage(ChatColor.RED + "Not all bought items fit in your inventory! Check the floor!");
+                                }
+                            } else {
+                                // List as pending
+                                plugin.brokerDb.query("INSERT INTO BrokerPending (playerName, itemName, damage, quant) VALUES ('"+buyerName+"', '"+boughtStack.getType()+"', "+boughtStack.getDurability()+", "+boughtStack.getAmount()+")");
+                            }
+                        }
+                    }
+                    if (sold == stack.getAmount()) {
+                        player.setItemInHand(null);
+                    } else {
+                        stack.setAmount(stack.getAmount() - sold);
+                    }
+                    double fee = 0;
+                    if (plugin.taxRate != 0) {
+                        if (plugin.taxIsPercentage) {
+                            fee = cost / 100 * plugin.taxRate;
+                        } else {
+                            fee = plugin.taxRate;
+                        }
+                    }
+                    plugin.vault.economy.depositPlayer(player.getName(), cost - fee);
+                    player.sendMessage(ChatColor.GOLD + "You sold " + ChatColor.WHITE + sold + " " + stack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(cost));
+                    if (fee != 0) {
+                        player.sendMessage(ChatColor.GOLD + "Broker Fee : " + ChatColor.WHITE + plugin.vault.economy.format(fee));
+                    }
+                    event.setCancelled(true);
+                    return;
                 }
             }
             plugin.pending.remove(player.getName());
@@ -617,13 +713,18 @@ public class BrokerListener implements Listener {
             String owner = ((Sign)event.getBlock().getState()).getLine(3);
             Player player = event.getPlayer();
             Sign sign = (Sign)event.getBlock().getState();
-            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders")) {
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell")) {
                 event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker signs!");
                 event.setCancelled(true);
                 sign.setLine(0, sign.getLine(0));        
                 sign.update();
             } else if (sign.getLine(3).equals("Buy Orders") && !player.hasPermission("broker.sign.buyorders")) {
                 event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker Buy Order signs!");
+                event.setCancelled(true);
+                sign.setLine(0, sign.getLine(0));        
+                sign.update();
+            } else if (sign.getLine(3).equals("Auto Sell") && !player.hasPermission("broker.sign.autosell")) {
+                event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker Auto Sell signs!");
                 event.setCancelled(true);
                 sign.setLine(0, sign.getLine(0));        
                 sign.update();
@@ -694,6 +795,7 @@ public class BrokerListener implements Listener {
         if (!orders.isEmpty()) {
             for (Integer orderId : orders.keySet()) {
                 HashMap<String, Object> order = orders.get(orderId);
+                int id = Integer.parseInt(order.get("id").toString());
                 Material mat = Material.getMaterial(order.get("itemName").toString());
                 ItemStack stack = new ItemStack(mat);
                 short damage = Short.parseShort(order.get("damage").toString());
@@ -708,6 +810,7 @@ public class BrokerListener implements Listener {
                     }
                     player.sendMessage(ChatColor.RED + "Not all bought items fit in your inventory! Check the floor!");
                 }
+                plugin.brokerDb.query("DELETE FROM BrokerPending WHERE id = " + id);
             }
         }
     }
