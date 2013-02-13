@@ -67,6 +67,7 @@ permissions:
       broker.sign: true
       broker.sign.autosell: true
       broker.sign.buyorders: true
+      broker.sign.pricecheck: true
       broker.sign.personal: true
       broker.sign.personal.others: true
   broker.sign:
@@ -75,6 +76,10 @@ permissions:
     description: Can make Broker Auto Sell signs
   broker.sign.buyorders:
     description: Can make Broker Buy Orders signs
+  broker.sign.pricecheck:
+    description: Can make Broker Price Check signs
+  broker.sign.pricecheck.update:
+    description: Can right-click to update Price Check signs
   broker.sign.personal:
     description: Can make personal Broker signs (own shop)
   broker.sign.personal.others:
