@@ -491,13 +491,13 @@ public class BrokerListener implements Listener {
         String line3 = event.getLine(3);
         if (line0.equalsIgnoreCase("[Broker]")) {
             Player player = event.getPlayer();
-            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell")) {
+            if (!player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell") && !player.hasPermission("broker.sign.pricecheck")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to create broker signs!");
                 event.getBlock().breakNaturally();
                 return;
-            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell")) {
+            } else if (player.hasPermission("broker.sign.personal") && !player.hasPermission("broker.sign") && !player.hasPermission("broker.sign.personal.others") && !player.hasPermission("broker.sign.buyorders") && !player.hasPermission("broker.sign.autosell") && !player.hasPermission("broker.sign.pricecheck")) {
                 event.setLine(3, player.getName());
-            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others") || player.hasPermission("broker.sign.buyorders") || player.hasPermission("broker.sign.autosell") || player.hasPermission("broker.sign")) && !line3.equals("")) {
+            } else if ((player.hasPermission("broker.sign.personal") || player.hasPermission("broker.sign.personal.others") || player.hasPermission("broker.sign.buyorders") || player.hasPermission("broker.sign.autosell") || player.hasPermission("broker.sign.pricecheck") || player.hasPermission("broker.sign")) && !line3.equals("")) {
                 if (line3.equalsIgnoreCase("Buy Orders") || line3.equalsIgnoreCase("BuyOrders")) {
                     if (player.hasPermission("broker.sign.buyorders")) {
                         event.setLine(3, "Buy Orders");
@@ -511,6 +511,14 @@ public class BrokerListener implements Listener {
                         event.setLine(3, "Auto Sell");
                     } else {
                         player.sendMessage(ChatColor.RED + "You do not have permission to create Broker Auto Sell signs!");
+                        event.getBlock().breakNaturally();
+                        return;
+                    }
+                } else if (line3.equalsIgnoreCase("Price Check") || line3.equalsIgnoreCase("PriceCheck")) {
+                    if (player.hasPermission("broker.sign.pricecheck")) {
+                        event.setLine(3, "Price Check");
+                    } else {
+                        player.sendMessage(ChatColor.RED + "You do not have permission to create Broker Price Check signs!");
                         event.getBlock().breakNaturally();
                         return;
                     }
@@ -634,6 +642,35 @@ public class BrokerListener implements Listener {
                     }
                     event.setCancelled(true);
                     return;
+                } else if (sellerName.equals("Price Check")) {
+                    if (!player.hasPermission("broker.sign.pricecheck.update")) {
+                        player.sendMessage(ChatColor.RED + "You don not have permission to update Price Check signs!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    ItemStack stack = player.getItemInHand();
+                    if (stack == null || stack.getType().equals(Material.AIR)) {
+                        player.sendMessage(ChatColor.RED + "You are not holding anything to Price Check!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    if (!stack.getEnchantments().isEmpty() || stack.hasItemMeta()) {
+                        player.sendMessage(ChatColor.RED + "You cannot Price Check items with enchantments or with ItemMeta data!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    HashMap<Integer, HashMap<String, Object>> buyOrders = plugin.brokerDb.select("price, quant", "BrokerOrders", "orderType = 1 AND itemName = '"+stack.getType()+"' AND damage = " + stack.getDurability() + " AND enchantments = '' AND meta = ''", null, "price DESC, timeCode ASC");
+                    if (buyOrders.isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "No valid Buy Orders were found for that item!");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    HashMap<String, Object> order = buyOrders.get(0);
+                    sign.setLine(1, stack.getType().name());
+                    sign.setLine(2, order.get("price").toString() + " (" + order.get("quant") + ")");
+                    sign.update();
+                    event.setCancelled(true);
+                    return;
                 }
             }
             plugin.pending.remove(player.getName());
@@ -699,6 +736,11 @@ public class BrokerListener implements Listener {
                 sign.update();
             } else if (sign.getLine(3).equals("Auto Sell") && !player.hasPermission("broker.sign.autosell")) {
                 event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker Auto Sell signs!");
+                event.setCancelled(true);
+                sign.setLine(0, sign.getLine(0));        
+                sign.update();
+            } else if (sign.getLine(3).equals("Price Check") && !player.hasPermission("broker.sign.pricecheck")) {
+                event.getPlayer().sendMessage(ChatColor.RED + "You do not have permission to break Broker Price Check signs!");
                 event.setCancelled(true);
                 sign.setLine(0, sign.getLine(0));        
                 sign.update();
