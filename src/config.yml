@@ -9,19 +9,36 @@
 # 
 # Configuration File
 # 
-# salesTax : Tax to charge on each sale (Set to 0.0 for no tax)
+# salesTaxRate : Tax to charge on each sale (Set to 0.0 for no tax)
 # 
 # taxIsPercentage : Treat salesTax as a percentage (i.e. tax = 10%)
 # 
 # minimumTaxable : Transactions below this amoutn will not be charged tax (0.0 = charge tax on ALL transactions)
 # 
+# taxOnBuyOrders : Should buy orders be charged tax?
+# 
+# payTaxToAccounts : Should tax be paid into an economy account?
+# 
+# taxRecipients : If paying tax to accounts, what accounts shoudl receive it?
+#    NOTE : Separate with commas. Tax is split evenly accross listed accounts
+#    TIP : Add dummy names to make some of the tax "dissappear"
+# 
 # maxOrderPerPlayer : Maximum number of orders a player can list (0 = Unlimited)
 # 
 # vipMaxOrders : Maximum number of orders a VIP player can list
 # 
+# villagersAreBrokers : Can you right-click villagers to open the global Broker window?
 # 
-salesTaxCharge: 0.0
+# playersAreBrokers : Can you right-click players to open their personal Broker window?
+# 
+# 
+salesTaxRate: 0.0
 taxIsPercentage: false
 minimumTaxable: 0.0
+taxOnBuyOrders : true
+payTaxToAccounts: false
+taxRecipients: player1,player2
 maxOrdersPerPlayer: 0
 vipMaxOrders: 0
+villagersAreBrokers: true
+playersAreBrokers: true
