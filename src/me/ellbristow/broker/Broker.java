@@ -940,7 +940,12 @@ public class Broker extends JavaPlugin {
         if (payTaxToAccounts) {
             for (String recipient : taxRecipients) {
                 if (vault.economy.hasAccount(recipient)) {
-                    vault.economy.depositPlayer(recipient, tax / taxRecipients.length);
+                    double share = tax / taxRecipients.length;
+                    vault.economy.depositPlayer(recipient, share);
+                    OfflinePlayer player = Bukkit.getOfflinePlayer(recipient);
+                    if (player.isOnline()) {
+                        player.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You received a tax payment of " + ChatColor.WHITE + vault.economy.format(share) + ChatColor.GOLD + "!");
+                    }
                 }
             }
         }
