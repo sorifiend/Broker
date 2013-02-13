@@ -36,6 +36,8 @@ public class Broker extends JavaPlugin {
     protected boolean taxIsPercentage;
     protected double taxMinimum;
     protected boolean taxOnBuyOrders;
+    protected boolean payTaxToAccounts;
+    protected String[] taxRecipients;
     protected int maxOrders;
     protected int vipMaxOrders;
     protected boolean brokerVillagers;
@@ -54,6 +56,11 @@ public class Broker extends JavaPlugin {
         config.set("minimumTaxable", taxMinimum);
         taxOnBuyOrders = config.getBoolean("taxOnBuyOrders", true);
         config.set("taxOnBuyOrders", taxOnBuyOrders);
+        payTaxToAccounts = config.getBoolean("payTaxToAccounts", false);
+        config.set("payTaxToAccounts", payTaxToAccounts);
+        String taxRecString = config.getString("taxRecipients", "player1,player2");
+        taxRecipients = taxRecString.split(",");
+        config.set("taxRecipients", taxRecString);
         maxOrders = config.getInt("maxOrdersPerPlayer", 0);
         config.set("maxOrdersPerPlayer", maxOrders);
         vipMaxOrders = config.getInt("vipMaxOrders", 0);
@@ -74,7 +81,6 @@ public class Broker extends JavaPlugin {
         if (!brokerDb.checkTable("BrokerOrders")) {
             brokerDb.createTable("BrokerOrders", tableColumns, tableDims);
         } else {
-            boolean pre_1_6 = false;
             if (!brokerDb.tableContainsColumn("BrokerOrders", "perItems")) {
                 brokerDb.addColumn("BrokerOrders", "perItems INTEGER NOT NULL DEFAULT 1");
             }
@@ -256,12 +262,8 @@ public class Broker extends JavaPlugin {
                             double fee = 0;
                             double totPrice = price * quant;
                             
-                            if (taxOnBuyOrders && totPrice >= taxMinimum) {
-                                if (taxIsPercentage) {
-                                    fee = totPrice / 100 * taxRate;
-                                } else {
-                                    fee = taxRate;
-                                }
+                            if (taxOnBuyOrders) {
+                                fee = calcTax(totPrice);
                             }
                             
                             if (vault.economy.getBalance(player.getName()) < totPrice + fee) {
@@ -280,6 +282,7 @@ public class Broker extends JavaPlugin {
                             brokerDb.query(query);
                             player.sendMessage(ChatColor.GOLD  + "Buy Order for "+item.getType()+" placed!");
                             vault.economy.withdrawPlayer(player.getName(), totPrice + fee);
+                            distributeTax(fee);
                             if (fee != 0) {
                                 player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice + fee) + " (including fee of "+vault.economy.format(fee)+")");
                             } else {
@@ -839,16 +842,10 @@ public class Broker extends JavaPlugin {
                     
                     double thisPrice = itemPrice * thisSale;
                     paid += thisPrice;
-                    double fee = 0;
-                    if (taxRate != 0) {
-                        if (taxIsPercentage) {
-                            fee = thisPrice / 100 * taxRate;
-                        } else {
-                            fee = taxRate;
-                        }
-                    }
+                    double fee = calcTax(thisPrice);
                     
                     vault.economy.depositPlayer(sellerName, thisPrice - fee);
+                    distributeTax(fee);
                     
                     OfflinePlayer seller = Bukkit.getOfflinePlayer(sellerName);
                     if (seller.isOnline()) {
@@ -889,7 +886,9 @@ public class Broker extends JavaPlugin {
                 double refund = budget - paid;
                 if (taxOnBuyOrders) {
                     if (taxIsPercentage) {
-                        refund += refund / 100 * taxRate;
+                        double tax = calcTax(refund);
+                        refund += tax;
+                        distributeTax(tax);
                     }
                 }
                 if (refund != 0) {
@@ -908,7 +907,9 @@ public class Broker extends JavaPlugin {
                 double refund = (price * bought) - paid;
                 if (taxOnBuyOrders) {
                     if (taxIsPercentage) {
-                        refund += refund / 100 * taxRate;
+                        double tax = calcTax(refund);
+                        refund += tax;
+                        distributeTax(tax);
                     }
                 }
                 if (refund != 0) {
@@ -921,6 +922,28 @@ public class Broker extends JavaPlugin {
             
         }
         
+    }
+    
+    protected double calcTax(double price) {
+        double tax = 0;
+        if (price >= taxMinimum) {
+            if (taxIsPercentage) {
+                tax = price / 100 * taxRate;
+            } else {
+                tax = taxRate;
+            }
+        }
+        return tax;
+    }
+    
+    protected void distributeTax(double tax) {
+        if (payTaxToAccounts) {
+            for (String recipient : taxRecipients) {
+                if (vault.economy.hasAccount(recipient)) {
+                    vault.economy.depositPlayer(recipient, tax / taxRecipients.length);
+                }
+            }
+        }
     }
     
 }

@@ -270,12 +270,10 @@ public class BrokerListener implements Listener {
                         String buyerName = (String)orders.get(i).get("playerName");
                         
                         double thisRefund = quant * price;
-                        if (plugin.taxOnBuyOrders && thisRefund >= plugin.taxMinimum) {
-                            if (plugin.taxIsPercentage) {
-                                thisRefund += thisRefund / 100 * plugin.taxRate;
-                            } else {
-                                thisRefund += plugin.taxRate;
-                            }
+                        if (plugin.taxOnBuyOrders) {
+                            double fee = plugin.calcTax(thisRefund);
+                            thisRefund += fee;
+                            plugin.distributeTax(fee);
                         }
                         
                         if (refunds.containsKey(buyerName)) {
@@ -427,35 +425,23 @@ public class BrokerListener implements Listener {
                                     OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
                                     if (quantity - allocated >= quant) {
                                         allocated += quant;
-                                        double tax = 0;
-                                        if (plugin.taxRate != 0 && quant * price >= plugin.taxMinimum) {
-                                            if (plugin.taxIsPercentage) {
-                                                tax = (quant * price) / 100 * plugin.taxRate;
-                                            } else {
-                                                tax = plugin.taxRate;
-                                            }
-                                        }
+                                        double tax = plugin.calcTax(quant * price);
                                         plugin.vault.economy.depositPlayer(sellerName, (quant * price) - tax);
+                                        plugin.distributeTax(tax);
                                         String thisquery = "DELETE FROM BrokerOrders WHERE playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString;
                                         plugin.brokerDb.query(thisquery);
                                         if (seller.isOnline()) {
                                             seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + quant + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(quant * price));
-                                            if (tax >= 0.01) {
+                                            if (tax > 0) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
                                             }
                                         }
                                     } else {
                                         int deduct = quantity - allocated;
                                         int selling = deduct;
-                                        double tax = 0;
-                                        if (plugin.taxRate != 0 && deduct * price >= plugin.taxMinimum) {
-                                            if (plugin.taxIsPercentage) {
-                                                tax = (deduct * price) / 100 * plugin.taxRate;
-                                            } else {
-                                                tax = plugin.taxRate;
-                                            }
-                                        }
+                                        double tax = plugin.calcTax(deduct * price);
                                         plugin.vault.economy.depositPlayer(sellerName, (deduct * price) - tax);
+                                        plugin.distributeTax(tax);
                                         HashMap<Integer, HashMap<String, Object>> sellerOrders = plugin.brokerDb.select("id, quant","BrokerOrders", "playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString, null, "timeCode ASC");
                                         Set<String> queries = new HashSet<String>();
                                         for (int j = 0; j < sellerOrders.size(); j++) {
@@ -476,7 +462,7 @@ public class BrokerListener implements Listener {
                                         }
                                         if (seller.isOnline()) {
                                             seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + selling + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(selling * price));
-                                            if (tax >= 0.01) {
+                                            if (tax > 0) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
                                             }
                                         }
@@ -585,7 +571,7 @@ public class BrokerListener implements Listener {
                         event.setCancelled(true);
                         return;
                     }
-                    HashMap<Integer, HashMap<String, Object>> buyOrders = plugin.brokerDb.select("id, playerName, price, quant, perItems", "BrokerOrders", "orderType = 1 AND itemName = '"+stack.getType()+"' AND damage = " + stack.getDurability() + " AND enchantments = '' AND meta = ''", null, "price/perItems DESC, timeCode ASC");
+                    HashMap<Integer, HashMap<String, Object>> buyOrders = plugin.brokerDb.select("id, playerName, price, quant", "BrokerOrders", "orderType = 1 AND itemName = '"+stack.getType()+"' AND damage = " + stack.getDurability() + " AND enchantments = '' AND meta = ''", null, "price DESC, timeCode ASC");
                     if (buyOrders.isEmpty()) {
                         player.sendMessage(ChatColor.RED + "No valid Buy Orders were found for that item!");
                         event.setCancelled(true);
@@ -600,28 +586,22 @@ public class BrokerListener implements Listener {
                         String buyerName = (String)buyOrder.get("playerName");
                         double price = Double.parseDouble(buyOrder.get("price").toString());
                         int quant = Integer.parseInt(buyOrder.get("quant").toString());
-                        int perItems = Integer.parseInt(buyOrder.get("perItems").toString());
-                        double itemPrice = price / perItems;
                         
                         int thisSale = 0;
                         ItemStack boughtStack = stack.clone();
                         
-                        if (perItems <= stack.getAmount()) {
-                            if (quant <= stack.getAmount()) {
-                                thisSale += quant;
-                                plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + id);
-                            } else {
-                                while (thisSale + perItems <= stack.getAmount()) {
-                                    thisSale += perItems;
-                                }
-                                plugin.brokerDb.query("UPDATE BrokerOrders SET quant = "+(quant-thisSale)+" WHERE id = " + id);
-                            }
+                        if (quant <= stack.getAmount()) {
+                            thisSale += quant;
+                            plugin.brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + id);
+                        } else {
+                            thisSale += stack.getAmount();
+                            plugin.brokerDb.query("UPDATE BrokerOrders SET quant = "+(quant-thisSale)+" WHERE id = " + id);
                         }
                         
                         if (thisSale != 0) {
                             sold += thisSale;
                             boughtStack.setAmount(thisSale);
-                            double thisCost = boughtStack.getAmount() * itemPrice;
+                            double thisCost = boughtStack.getAmount() * price;
                             cost += thisCost;
                             OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
                             if (buyer.isOnline()) {
@@ -645,15 +625,9 @@ public class BrokerListener implements Listener {
                     } else {
                         stack.setAmount(stack.getAmount() - sold);
                     }
-                    double fee = 0;
-                    if (plugin.taxRate != 0) {
-                        if (plugin.taxIsPercentage) {
-                            fee = cost / 100 * plugin.taxRate;
-                        } else {
-                            fee = plugin.taxRate;
-                        }
-                    }
+                    double fee = plugin.calcTax(cost);
                     plugin.vault.economy.depositPlayer(player.getName(), cost - fee);
+                    plugin.distributeTax(fee);
                     player.sendMessage(ChatColor.GOLD + "You sold " + ChatColor.WHITE + sold + " " + stack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(cost));
                     if (fee != 0) {
                         player.sendMessage(ChatColor.GOLD + "Broker Fee : " + ChatColor.WHITE + plugin.vault.economy.format(fee));
