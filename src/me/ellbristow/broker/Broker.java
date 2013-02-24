@@ -2,10 +2,10 @@ package me.ellbristow.broker;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
 import me.ellbristow.broker.utils.BrokerDb;
 import me.ellbristow.broker.utils.ItemSerialization;
 import me.ellbristow.broker.utils.Metrics;
@@ -664,10 +664,32 @@ public class Broker extends JavaPlugin {
     private void loadAliases() {
         File aliasFile = new File(getDataFolder(), "itemNames.yml");
         FileConfiguration aliasConfig = YamlConfiguration.loadConfiguration(aliasFile);
+        
+        if (!aliasFile.exists() || aliasConfig.getKeys(false).isEmpty()) {
+            getLogger().info("Loading defaults for Item Aliases!");
+            InputStream defConfigStream = this.getResource("itemNames.yml");
+            if (defConfigStream != null) {
+                YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+                
+                aliasConfig.setDefaults(defConfig);
+                for (String key : defConfig.getKeys(false)) {
+                    int id = aliasConfig.getInt(key + ".id", defConfig.getInt(key + ".id"));
+                    short data = (short) aliasConfig.getInt(key + ".data", defConfig.getInt(key + ".data"));
+                    Object[] itemArray = new Object[2];
+                    itemArray[0] = id;
+                    itemArray[1] = data;
+                    itemAliases.put(key.toLowerCase(), itemArray);
+
+                    aliasConfig.set(key + ".id", id);
+                    aliasConfig.set(key + ".data", data);
+
+                }
+            }
+        }
 
         for (String key : aliasConfig.getKeys(false)) {
-            int id = aliasConfig.getInt(key + ".id");
-            short data = (short) aliasConfig.getInt(key + ".data");
+            int id = aliasConfig.getInt(key + ".id", aliasConfig.getInt(key + ".id"));
+            short data = (short) aliasConfig.getInt(key + ".data", aliasConfig.getInt(key + ".data"));
             Object[] itemArray = new Object[2];
             itemArray[0] = id;
             itemArray[1] = data;
@@ -676,20 +698,21 @@ public class Broker extends JavaPlugin {
             aliasConfig.set(key + ".id", id);
             aliasConfig.set(key + ".data", data);
 
-            saveCustomConfig(aliasFile, aliasConfig);
-
         }
+        
+        saveCustomConfig(aliasFile, aliasConfig);
 
     }
 
-    private void saveCustomConfig(File file, FileConfiguration config) {
-        if (config == null || file == null) {
+    private void saveCustomConfig(File thisFile, FileConfiguration thisConfig) {
+        if (thisConfig == null || thisFile == null) {
+            getLogger().warning("Could not save null config to " + thisFile);
             return;
         }
         try {
-            config.save(file);
+            thisConfig.save(thisFile);
         } catch (IOException ex) {
-            getLogger().log(Level.SEVERE, "Could not save " + file, ex);
+            getLogger().severe("Could not save " + thisFile);
         }
     }
 
@@ -754,7 +777,7 @@ public class Broker extends JavaPlugin {
 
                     if (itemAliases.containsKey(itemName)) {
                         Object[] alias = itemAliases.get(itemName);
-                        item = new ItemStack((Material) alias[0]);
+                        item = new ItemStack(Material.getMaterial((Integer)alias[0]));
                         if ((Short) alias[1] != 0) {
                             damage = (Short) alias[1];
                         }
@@ -764,7 +787,7 @@ public class Broker extends JavaPlugin {
                         // Try again
                         if (itemAliases.containsKey(itemName)) {
                             Object[] alias = itemAliases.get(itemName);
-                            item = new ItemStack((Material) alias[0]);
+                            item = new ItemStack(Material.getMaterial((Integer)alias[0]));
                             if ((Short) alias[1] != 0) {
                                 damage = (Short) alias[1];
                             }

@@ -3,7 +3,7 @@
 # This file contains all aliases used to identify item materials in Broker.
 # Common aliases have been provided, but you can add your own aliases by
 # following the same format below.
-#
+# 
 # <alias>:
 #   id: <item ID>
 #   data: <item data/damage>

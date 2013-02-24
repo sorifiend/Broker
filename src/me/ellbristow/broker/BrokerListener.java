@@ -555,7 +555,7 @@ public class BrokerListener implements Listener {
             if (sellerName.equals("")) {
                 player.openInventory(plugin.getBrokerInv("0", player, null, false));
             } else {
-                if (!sellerName.equals("Buy Orders") && !sellerName.equals("Auto Sell")) {
+                if (!sellerName.equals("Buy Orders") && !sellerName.equals("Auto Sell") && !sellerName.equals("Price Check")) {
                     OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
                     if (!seller.hasPlayedBefore()) {
                         player.sendMessage(ChatColor.RED + "Sorry! This shop appears to be closed!");
