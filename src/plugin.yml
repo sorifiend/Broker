@@ -68,6 +68,7 @@ permissions:
       broker.sign.autosell: true
       broker.sign.buyorders: true
       broker.sign.pricecheck: true
+      broker.sign.pricecheck.update: true
       broker.sign.personal: true
       broker.sign.personal.others: true
   broker.sign:
