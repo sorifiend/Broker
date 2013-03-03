@@ -609,12 +609,12 @@ public class BrokerListener implements Listener {
                         if (thisSale != 0) {
                             sold += thisSale;
                             boughtStack.setAmount(thisSale);
-                            double thisCost = boughtStack.getAmount() * price;
+                            double thisCost = boughtStack.getAmount() * price/perItems;
                             cost += thisCost;
                             OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
                             if (buyer.isOnline()) {
                                 Player onlineBuyer = buyer.getPlayer();
-                                onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + boughtStack.getAmount() + " " + boughtStack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(thisCost));
+                                onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + boughtStack.getAmount() + " " + boughtStack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(thisCost/perItems));
                                 HashMap<Integer, ItemStack> dropped = onlineBuyer.getInventory().addItem(boughtStack);
                                 if (!dropped.isEmpty()) {
                                     for (ItemStack dropStack : dropped.values()) {
