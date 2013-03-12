@@ -425,22 +425,23 @@ public class BrokerListener implements Listener {
                                     OfflinePlayer seller = plugin.getServer().getOfflinePlayer(sellerName);
                                     if (quantity - allocated >= quant) {
                                         allocated += quant;
-                                        double tax = plugin.calcTax(quant * price);
-                                        plugin.vault.economy.depositPlayer(sellerName, (quant * price) - tax);
+                                        double tax = plugin.calcTax(totPrice);
+                                        plugin.vault.economy.depositPlayer(sellerName, totPrice - tax);
                                         plugin.distributeTax(tax);
                                         String thisquery = "DELETE FROM BrokerOrders WHERE playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString;
                                         plugin.brokerDb.query(thisquery);
                                         if (seller.isOnline()) {
-                                            seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + quant + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(quant * price));
+                                            seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + quant + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(totPrice));
                                             if (tax > 0) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
                                             }
                                         }
                                     } else {
                                         int deduct = quantity - allocated;
+                                        double itemPrice  = price / perItems;
                                         int selling = deduct;
-                                        double tax = plugin.calcTax(deduct * price);
-                                        plugin.vault.economy.depositPlayer(sellerName, (deduct * price) - tax);
+                                        double tax = plugin.calcTax(deduct * itemPrice);
+                                        plugin.vault.economy.depositPlayer(sellerName, (deduct * itemPrice) - tax);
                                         plugin.distributeTax(tax);
                                         HashMap<Integer, HashMap<String, Object>> sellerOrders = plugin.brokerDb.select("id, quant","BrokerOrders", "playername = '" + sellerName + "' AND orderType = 0 AND itemName = '" + stack.getType().name() + "' AND price = " + price + " AND damage = " + stack.getDurability() + enchantmentString, null, "timeCode ASC");
                                         Set<String> queries = new HashSet<String>();
@@ -461,7 +462,7 @@ public class BrokerListener implements Listener {
                                             plugin.brokerDb.query((String)thisquery);
                                         }
                                         if (seller.isOnline()) {
-                                            seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + selling + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(selling * price));
+                                            seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] " + ChatColor.WHITE + player.getName() + ChatColor.GOLD + " bought " + ChatColor.WHITE + selling + " " + stack.getType().name() + enchanted + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(selling * itemPrice));
                                             if (tax > 0) {
                                                 seller.getPlayer().sendMessage(ChatColor.GOLD + "[Broker] You were charged sales tax of " + ChatColor.WHITE + plugin.vault.economy.format(tax));
                                             }
@@ -609,12 +610,12 @@ public class BrokerListener implements Listener {
                         if (thisSale != 0) {
                             sold += thisSale;
                             boughtStack.setAmount(thisSale);
-                            double thisCost = boughtStack.getAmount() * price/perItems;
+                            double thisCost = boughtStack.getAmount() * price;
                             cost += thisCost;
                             OfflinePlayer buyer = Bukkit.getOfflinePlayer(buyerName);
                             if (buyer.isOnline()) {
                                 Player onlineBuyer = buyer.getPlayer();
-                                onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + boughtStack.getAmount() + " " + boughtStack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(thisCost/perItems));
+                                onlineBuyer.sendMessage(ChatColor.GOLD + "You bought " + ChatColor.WHITE + boughtStack.getAmount() + " " + boughtStack.getType() + ChatColor.GOLD + " for " + ChatColor.WHITE + plugin.vault.economy.format(thisCost));
                                 HashMap<Integer, ItemStack> dropped = onlineBuyer.getInventory().addItem(boughtStack);
                                 if (!dropped.isEmpty()) {
                                     for (ItemStack dropStack : dropped.values()) {
