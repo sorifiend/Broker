@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
@@ -43,7 +44,7 @@ public class BrokerListener implements Listener {
         if (inv.getName().startsWith("<Broker>")) {
             String seller = "";
             boolean buyOrders = false;
-            if (inv.getName().equals("<Broker> Buy Orders")) {
+            if (inv.getName().equals("<Broker> Sell")) {
                 buyOrders = true;
             } else if (inv.getName().equals("<Broker> Buy Cancel")) {
                 buyOrders = true;
@@ -541,16 +542,25 @@ public class BrokerListener implements Listener {
     
     @EventHandler (priority = EventPriority.NORMAL)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.isCancelled())
-            return;
-        if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && (event.getClickedBlock().getType().equals(Material.SIGN_POST) || event.getClickedBlock().getType().equals(Material.WALL_SIGN)) && ((Sign)event.getClickedBlock().getState()).getLine(0).equalsIgnoreCase("[Broker]")) {
-            Player player = event.getPlayer();
+        Action action = event.getAction();
+        Player player = event.getPlayer();
+        Block block = event.getClickedBlock();
+        if (action.equals(Action.RIGHT_CLICK_AIR) && player.getItemInHand().getTypeId() < 256) {
+            block = player.getTargetBlock(null, 5);
+            if (block != null && (block.getType().equals(Material.WALL_SIGN) || block.getType().equals(Material.SIGN_POST))) {
+                action = Action.RIGHT_CLICK_BLOCK;
+            }
+        } else {
+            if (event.isCancelled())
+                return;
+        }
+        if (action.equals(Action.RIGHT_CLICK_BLOCK) && (block.getType().equals(Material.SIGN_POST) || block.getType().equals(Material.WALL_SIGN)) && ((Sign)block.getState()).getLine(0).equalsIgnoreCase("[Broker]")) {
             if (!player.hasPermission("broker.use")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to use the broker!");
                 event.setCancelled(true);
                 return;
             }
-            Sign sign = (Sign)event.getClickedBlock().getState();
+            Sign sign = (Sign)block.getState();
             String sellerName = sign.getLine(3);
             String openString = "<Broker> Main Page";
             if (sellerName.equals("")) {
@@ -566,7 +576,7 @@ public class BrokerListener implements Listener {
                     player.openInventory(plugin.getBrokerInv("0", player, seller.getName(), false));
                 } else if (sellerName.equals("Buy Orders")) {
                     player.openInventory(plugin.getBrokerInv("0", player, "", true));
-                    openString = "<Broker> Buy Orders";
+                    openString = "<Broker> Sell";
                 } else if (sellerName.equals("Auto Sell")) {
                     // Attempt Auto Sell
                     ItemStack stack = player.getItemInHand();
@@ -785,7 +795,7 @@ public class BrokerListener implements Listener {
         String priceOrder = "ASC";
         String per = "perItems";
         String perGroup = ", perItems";
-        if (inv.getName().equals("<Broker> Buy Orders") || inv.getName().equals("<Broker> Buy Cancel") || inv.getName().equals("<Broker> Buy AdminCancel")) {
+        if (inv.getName().equals("<Broker> Sell") || inv.getName().equals("<Broker> Buy Cancel") || inv.getName().equals("<Broker> Buy AdminCancel")) {
             orderType = 1;
             priceOrder = "DESC";
             per = "SUM(quant) AS perItems";

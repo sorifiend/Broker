@@ -1,15 +1,10 @@
 package me.ellbristow.broker;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import me.ellbristow.broker.utils.BrokerDb;
-import me.ellbristow.broker.utils.ItemSerialization;
-import me.ellbristow.broker.utils.Metrics;
-import me.ellbristow.broker.utils.vaultBridge;
+import me.ellbristow.broker.utils.*;
 import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -69,7 +64,13 @@ public class Broker extends JavaPlugin {
         config.set("villagersAreBrokers", brokerVillagers);
         brokerPlayers = config.getBoolean("playersAreBrokers", true);
         config.set("playersAreBrokers", brokerPlayers);
-
+        
+        // eBean crash fix
+        File ebean = new File(getDataFolder().getParentFile().getParentFile(), "ebean.properties");
+        if (!ebean.exists()) {
+            createEbean(ebean);
+        }
+        
         vault = new vaultBridge(this);
         if (vault.foundEconomy == false) {
             getLogger().severe("Could not find an Economy Plugin via [Vault]!");
@@ -124,37 +125,37 @@ public class Broker extends JavaPlugin {
         if (commandLabel.equalsIgnoreCase("broker")) {
 
             if (!sender.hasPermission("broker.use")) {
-                sender.sendMessage(ChatColor.RED + "You do not have permission to use " + ChatColor.GOLD + "/broker");
+                sender.sendMessage(ChatColor.RED + Lang.get("ErrorNoPerms") + Lang.get("ErrorNoPermsUse") + ChatColor.GOLD + " /broker");
                 return false;
             }
 
             if (args.length == 0) {
                 // Command Help
-                sender.sendMessage(ChatColor.GOLD + "== Broker v" + ChatColor.WHITE + getDescription().getVersion() + ChatColor.GOLD + " by " + ChatColor.WHITE + "ellbristow" + ChatColor.GOLD + " ==");
+                sender.sendMessage(ChatColor.GOLD + "== Broker v" + ChatColor.WHITE + getDescription().getVersion() + ChatColor.GOLD + " " + Lang.get("By") + " " + ChatColor.WHITE + "ellbristow" + ChatColor.GOLD + " ==");
                 if (sender.hasPermission("broker.commands.buy") || sender.hasPermission("broker.commands.sell")) {
-                    sender.sendMessage(ChatColor.GRAY + "{optional} [required]");
+                    sender.sendMessage(ChatColor.GRAY + "{" + Lang.get("Optional") +"} [" + Lang.get("Required") + "]");
                 }
                 if (sender.hasPermission("broker.commands.buy")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy {Seller Name}" + ChatColor.GRAY + ": Open the broker window to buy items");
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy {"+Lang.get("CommandMessageSellerName") +"}" + ChatColor.GRAY + ": " + Lang.get("CommandMessageOpen"));
                 }
                 if (sender.hasPermission("broker.commands.buy.orders")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy [Item Name:ID{:data}] [Quantity] [Max Price Each]");
-                    sender.sendMessage(ChatColor.GRAY + " Place a Buy Order");
-                    sender.sendMessage(ChatColor.GOLD + "/broker buy cancel" + ChatColor.GRAY + ": Cancel a Buy Order");
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy [" + Lang.get("CommandMessageItemName") + ":"+Lang.get("ID")+"{:"+Lang.get("CommandMessageData")+"}] ["+Lang.get("CommandMessageQuantity")+"] ["+Lang.get("CommandMessageMaxPriceEach")+"]");
+                    sender.sendMessage(ChatColor.GRAY + " " + Lang.get("CommandMessagePlaceABuyOrder"));
+                    sender.sendMessage(ChatColor.GOLD + "/broker buy cancel" + ChatColor.GRAY + ": " + Lang.get("CommandMessageCancelABuyOrder"));
                 }
                 if (sender.hasPermission("broker.commands.sell")) {
-                    sender.sendMessage(ChatColor.GOLD + "/broker sell" + ChatColor.GRAY + ": Browse outstanding Buy Orders");
-                    sender.sendMessage(ChatColor.GOLD + "/broker sell [Price] {Per # Items}");
-                    sender.sendMessage(ChatColor.GRAY + " List the item in your hand for sale");
-                    sender.sendMessage(ChatColor.GRAY + " Optional: how many items for this price");
-                    sender.sendMessage(ChatColor.GRAY + " Either set a price or sell to the highest current bidder");
-                    sender.sendMessage(ChatColor.GOLD + "/broker sell cancel" + ChatColor.GRAY + ": Cancel a sell order");
+                    sender.sendMessage(ChatColor.GOLD + "/broker sell" + ChatColor.GRAY + ": " + Lang.get("CommandMessageBrowseOutstanding"));
+                    sender.sendMessage(ChatColor.GOLD + "/broker sell ["+Lang.get("CommandMessagePrice")+"] {"+Lang.get("CommandMessagePerItems")+"}");
+                    sender.sendMessage(ChatColor.GRAY + " "+Lang.get("CommandMessageListForSale"));
+                    sender.sendMessage(ChatColor.GRAY + " "+Lang.get("Optional")+": "+ Lang.get("CommandMessageHowManyItems"));
+                    sender.sendMessage(ChatColor.GRAY + " " + Lang.get("CommandMessageSetPriceOrSell"));
+                    sender.sendMessage(ChatColor.GOLD + "/broker sell cancel" + ChatColor.GRAY + ": " + Lang.get("CommandMessageCancelASellOrder"));
                 }
                 return true;
             }
 
             if (!(sender instanceof Player)) {
-                sender.sendMessage(ChatColor.RED + "You cannot use broker from the console!");
+                sender.sendMessage(ChatColor.RED + Lang.get("ErrorNotFromConsole"));
                 return false;
             }
 
@@ -167,7 +168,7 @@ public class Broker extends JavaPlugin {
                 if (args[0].equalsIgnoreCase("buy")) {
 
                     if (!sender.hasPermission("broker.commands.buy")) {
-                        sender.sendMessage(ChatColor.RED + "You do not have permission to use the buy command!");
+                        sender.sendMessage(ChatColor.RED + Lang.get("ErrorNoPerms") + Lang.get("ErrorNoPermsBuyCommand"));
                         return false;
                     }
 
@@ -176,20 +177,20 @@ public class Broker extends JavaPlugin {
                             
                             if (args[1].equalsIgnoreCase("cancel")) {
                                 if (!player.hasPermission("broker.commands.buy.cancel")) {
-                                    player.sendMessage(ChatColor.RED + "You do not have permission to cancel orders!");
+                                    player.sendMessage(ChatColor.RED + Lang.get("ErrorNoPerms") + Lang.get("ErrorNoPermsBuyCancel"));
                                     return true;
                                 }
-                                player.sendMessage(ChatColor.GOLD + "Cancelling Buy Orders");
+                                player.sendMessage(ChatColor.GOLD + Lang.get("CommandMessageCancellingBuyOrder"));
                                 player.openInventory(getBrokerInv("0", player, player.getName(), true));
                                 return true;
                             }
                             
                             if (args[1].equalsIgnoreCase("admincancel")) {
                                 if (!player.hasPermission("broker.commands.buy.admincancel")) {
-                                    player.sendMessage(ChatColor.RED + "You do not have permission to cancel orders as an admin!");
+                                    player.sendMessage(ChatColor.RED + Lang.get("ErrorNoPerms") + Lang.get("ErrorNoPermsBuyCancelAdmin"));
                                     return true;
                                 }
-                                player.sendMessage(ChatColor.GOLD + "Cancelling Buy Orders");
+                                player.sendMessage(ChatColor.GOLD + Lang.get("CommandMessageCancellingBuyOrder"));
                                 player.openInventory(getBrokerInv("0", player, "ADMIN", true));
                                 return true;
                             }
@@ -198,9 +199,9 @@ public class Broker extends JavaPlugin {
 
                             OfflinePlayer seller = getServer().getOfflinePlayer(args[1]);
                             if (!seller.hasPlayedBefore()) {
-                                player.sendMessage(ChatColor.RED + "Player " + ChatColor.WHITE + args[1] + ChatColor.RED + " not found!");
-                                player.sendMessage(ChatColor.GRAY + "/broker buy {Player Name}");
-                                player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                player.sendMessage(ChatColor.RED + Lang.get("Player")+" " + ChatColor.WHITE + args[1] + ChatColor.RED + " "+Lang.get("CommandMessageNotFound"));
+                                player.sendMessage(ChatColor.GRAY + "/broker buy {"+Lang.get("CommandMessagePlayerName")+"}");
+                                player.sendMessage(ChatColor.GRAY + "/broker buy ["+Lang.get("CommandMessageItemName")+"|"+Lang.get("ID")+"{:"+Lang.get("CommandMessageData")+"}] ["+Lang.get("CommandMessageQuantity")+"] ["+Lang.get("CommandMessageMaxPriceEach")+"]");
                                 return false;
                             }
                             player.openInventory(getBrokerInv("0", player, seller.getName(), false));
@@ -313,7 +314,7 @@ public class Broker extends JavaPlugin {
                             sender.sendMessage(ChatColor.RED + "You do not have permission to open Buy Orders on command!");
                             return false;
                         }
-                        player.sendMessage(ChatColor.GOLD + "<BROKER> Buy Orders");
+                        player.sendMessage(ChatColor.GOLD + "<BROKER> Sell");
                         player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
                         player.openInventory(getBrokerInv("0", player, null, true));
                         return true;
@@ -441,7 +442,7 @@ public class Broker extends JavaPlugin {
             } else if (seller.equals("ADMIN")) {
                 inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy AdminCancel");
             } else {
-                inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy Orders");
+                inv = Bukkit.createInventory(buyer, 54, "<Broker> Sell");
             }
         } else if (seller.equals("")) {
             inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy");
@@ -828,10 +829,8 @@ public class Broker extends JavaPlugin {
             int startQuant = quant;
             double budget = price * quant;
             double paid = 0;
-            
             // Match Sell Orders
-            HashMap<Integer, HashMap<String, Object>> sellOrders = brokerDb.select("id, playerName, quant, price, perItems, meta", "BrokerOrders", "orderType = 0 AND itemName = '"+mat+"' AND damage = " + damage + " AND price/perItems <= " + price + " AND enchantments = '' AND meta = ''", null, "price/perItems ASC, timeCode ASC");
-            
+            HashMap<Integer, HashMap<String, Object>> sellOrders = brokerDb.select("id, playerName, quant, price, perItems, meta", "BrokerOrders", "orderType = 0 AND itemName = '"+mat+"' AND damage = " + damage + " AND price/perItems <= " + price + " AND enchantments = '' AND meta = ''", null, "price/perItems ASC, timeCode ASC", true);
             for (int x = 0; x < sellOrders.size(); x++) {
                 HashMap<String, Object> sellOrder = sellOrders.get(x);
                 int sid = Integer.parseInt(sellOrder.get("id").toString());
@@ -971,6 +970,18 @@ public class Broker extends JavaPlugin {
                     }
                 }
             }
+        }
+    }
+    
+    private void createEbean(File ebean) {
+        try {
+            Writer output = new BufferedWriter(new FileWriter(ebean));
+            output.write("ebean.search.jars=bukkit.jar");
+            output.close();
+            getLogger().info("ebean.properties created!");
+        } catch (IOException e) {
+            String message = "Error Creating ebean.properties: " + e.getMessage();
+            getLogger().severe(message);
         }
     }
     

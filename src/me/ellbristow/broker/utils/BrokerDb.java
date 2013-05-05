@@ -13,6 +13,8 @@ public class BrokerDb {
     private Statement statement;
     private HashMap<Integer, HashMap<String, Object>> rows = new HashMap<Integer, HashMap<String, Object>>();
     private int numRows = 0;
+    private HashMap<Integer, HashMap<String, Object>> innerRows = new HashMap<Integer, HashMap<String, Object>>();
+    private int numInnerRows = 0;
     
     public BrokerDb (Broker instance) {
         plugin = instance;
@@ -111,6 +113,11 @@ public class BrokerDb {
     }
     
     public HashMap<Integer, HashMap<String, Object>> select(String fields, String tableName, String where, String group, String order) {
+        HashMap<Integer, HashMap<String, Object>> results = select(fields, tableName, where, group, order, false);
+        return results;
+    }
+    
+    public HashMap<Integer, HashMap<String, Object>> select(String fields, String tableName, String where, String group, String order, boolean inner) {
         if ("".equals(fields) || fields == null) {
             fields = "*";
         }
@@ -128,8 +135,13 @@ public class BrokerDb {
             if (!"".equals(order) && order != null) {
                 query += " ORDER BY " + order;
             }
-            rows.clear();
-            numRows = 0;
+            if (!inner) {
+                rows.clear();
+                numRows = 0;
+            } else {
+                innerRows.clear();
+                numInnerRows = 0;
+            }
             ResultSet results = statement.executeQuery(query);
             if (results != null) {
                 int columns = results.getMetaData().getColumnCount();
@@ -141,18 +153,31 @@ public class BrokerDb {
                     columnNames += results.getMetaData().getColumnName(i);
                 }
                 String[] columnArray = columnNames.split(",");
-                numRows = 0;
+                if (!inner) {
+                    numRows = 0;
+                } else {
+                    numInnerRows = 0;
+                }
                 while (results.next()) {
                     HashMap<String, Object> thisColumn = new HashMap<String, Object>();
                     for (String columnName : columnArray) {
                         thisColumn.put(columnName, results.getObject(columnName));
                     }
-                    rows.put(numRows, thisColumn);
-                    numRows++;
+                    if (!inner) {
+                        rows.put(numRows, thisColumn);
+                        numRows++;
+                    } else {
+                        innerRows.put(numInnerRows, thisColumn);
+                        numInnerRows++;
+                    }
                 }
                 results.close();
                 close();
-                return rows;
+                if (!inner) {
+                    return rows;
+                } else {
+                    return innerRows;
+                }
             } else {
                 close();
                 return null;

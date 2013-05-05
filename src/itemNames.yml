@@ -193,6 +193,9 @@ nether_brick_slab:
 quartz_slab:
   id: 44
   data: 7
+redstone_lamp:
+  id: 123
+  data: 0
 wooden_slab:
   id: 126
   data: 0
@@ -213,6 +216,21 @@ chiseled_stone_brick:
   data: 3
 cobble_wall:
   id: 139
+  data: 0
+light_pressure_plate:
+  id: 147
+  data: 0
+light_pressure_plate:
+  id: 147
+  data: 0
+light_senser:
+  id: 151
+  data: 0
+light_sensor:
+  id: 151
+  data: 0
+redstone_block:
+  id: 147
   data: 0
 chiseled_quartz:
   id: 155
@@ -472,6 +490,9 @@ villager_egg:
 skeleton_head:
   id: 397
   data: 0
+wither_head:
+  id: 397
+  data: 1
 wither_skeleton_head:
   id: 397
   data: 1
@@ -484,6 +505,33 @@ zombie_head:
 human_head:
   id: 397
   data: 3
+player_head:
+  id: 397
+  data: 3
 creeper_head:
   id: 397
   data: 4
+redstone_comparater:
+  id: 404
+  data: 0
+redstone_comparator:
+  id: 404
+  data: 0
+comparater:
+  id: 404
+  data: 0
+comparator:
+  id: 404
+  data: 0
+minecart_tnt:
+  id: 408
+  data: 0
+tnt_minecart:
+  id: 408
+  data: 0
+minecart_hopper:
+  id: 408
+  data: 0
+hopper_minecart:
+  id: 408
+  data: 0
