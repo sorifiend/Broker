@@ -57,6 +57,8 @@ public class Lang {
         loadLangPhrase("CommandMessageCancellingBuyOrder", "Cancelling Buy Orders");
         loadLangPhrase("CommandMessageNotFound", "not found!");
         loadLangPhrase("CommandMessagePlayerName", "Player Name");
+        loadLangPhrase("CommandMessageAdminBuyOrder", "List new ADMIN buy order");
+        loadLangPhrase("CommandMessageAdminSellOrder", "List new ADMIN sell order");
         
         // Errors
         loadLangPhrase("ErrorNotFromConsole", "You cannot use Broker from the console!");
@@ -65,6 +67,7 @@ public class Lang {
         loadLangPhrase("ErrorNoPermsBuyCommand", "use the buy command!");
         loadLangPhrase("ErrorNoPermsBuyCancel", "cancel Buy Orders!");
         loadLangPhrase("ErrorNoPermsBuyCancelAdmin", "cancel Buy Orders as an admin!");
+        loadLangPhrase("ErrorNotFound", "not found");
         
         try {
             langStore.save(langFile);

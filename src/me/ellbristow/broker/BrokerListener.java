@@ -1,9 +1,6 @@
 package me.ellbristow.broker;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -41,20 +38,20 @@ public class BrokerListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.isCancelled()) return;
         Inventory inv = event.getView().getTopInventory();
-        if (inv.getName().startsWith("<Broker>")) {
+        if (inv.getName().startsWith("<B>")) {
             String seller = "";
             boolean buyOrders = false;
-            if (inv.getName().equals("<Broker> Sell")) {
+            if (inv.getName().equals("<B> Sell")) {
                 buyOrders = true;
-            } else if (inv.getName().equals("<Broker> Buy Cancel")) {
+            } else if (inv.getName().equals("<B> Buy Cancel")) {
                 buyOrders = true;
                 seller = "Cancel";
-            } else if (inv.getName().equals("<Broker> Sell Cancel")) {
+            } else if (inv.getName().equals("<B> Sell Cancel")) {
                 seller = "Cancel";
-            } else if (inv.getName().equals("<Broker> Buy AdminCancel")) {
+            } else if (inv.getName().equals("<B> Buy AdminCancel")) {
                 buyOrders = true;
                 seller = "ADMIN";
-            } else if (inv.getName().equals("<Broker> Sell AdminCancel")) {
+            } else if (inv.getName().equals("<B> Sell AdminCancel")) {
                 seller = "ADMIN";
             } else {
                 seller = inv.getName().split(" ")[1];
@@ -95,84 +92,24 @@ public class BrokerListener implements Listener {
                     if (!plugin.isDamageableItem(new ItemStack(Material.getMaterial(itemName)))) {
                         itemName += ":"+inv.getItem(slot).getDurability();
                     }
-                    inv.setContents(plugin.getBrokerInv(itemName+"::0", buyer, seller, buyOrders).getContents());
+                    
+                    Inventory newInv = Bukkit.createInventory(inv.getHolder(), 54, inv.getName());
+                    newInv.setContents(plugin.getBrokerInv(itemName+"::0", buyer, seller, buyOrders).getContents());
+                    
+                    if (newInv.getItem(1) == null) {
+                        // One item returned
+                        completeTrans(player,newInv,0,buyOrders);
+                        return;
+                    }
+                    
+                    inv.setContents(newInv.getContents());
+                    
                     player.sendMessage(ChatColor.GOLD + itemType.name());
                     player.sendMessage(ChatColor.GOLD + "Page 1");
                 } else if (slot >= 0 && slot < 45 && inv.getItem(slot) != null) {
-                    // Clicked item on sub-page
                     event.setCancelled(true);
-                    String priceString = getPrice(inv,slot, null);
-                    String[] priceSplit = priceString.split(":");
-                    double price = Double.parseDouble(priceSplit[0]);
-                    int perItems = Integer.parseInt(priceSplit[1]);
-                    String each = "each";
-                    if (perItems != 1) {
-                        each = "for " + perItems;
-                    }
-                    if (buyOrders) {
-                        player.sendMessage(ChatColor.GOLD + "Buy Order Details:");
-                        player.sendMessage(ChatColor.GOLD + " Max Price Each: " + ChatColor.WHITE + plugin.vault.economy.format(price));
-                        player.sendMessage(ChatColor.GOLD + " Max Quant: " + ChatColor.WHITE + perItems);
-                        player.sendMessage(ChatColor.GOLD + "To sell an item, Try:");
-                        player.sendMessage(" /broker sell [price] {Per # Items}!");
-                        final String playerName = player.getName();
-                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
-                            @Override
-                            public void run() {
-                                Player runPlayer = plugin.getServer().getPlayer(playerName);
-                                runPlayer.closeInventory();
-                                runPlayer.updateInventory();
-                            }
-                        }, 5L);
-                    } else if (price != 0.00) {
-                        player.sendMessage(ChatColor.GOLD + "Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " ("+each+")");
-                        HashMap<Integer,String> slotPrice = new HashMap<Integer,String>();
-                        slotPrice.put(slot,price+":"+perItems);
-                        final HashMap<ItemStack,String> pending = new HashMap<ItemStack,String>();
-                        pending.put(inv.getItem(slot),price+":"+perItems);
-                        plugin.pending.put(player.getName(), pending);
-                        player.sendMessage("Enter quantity to buy at this price");
-                        player.sendMessage("(Enter 0 to cancel)");
-                        final String playerName = player.getName();
-                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
-                            @Override
-                            public void run() {
-                                Player runPlayer = plugin.getServer().getPlayer(playerName);
-                                runPlayer.closeInventory();
-                                runPlayer.updateInventory();
-                            }
-                        }, 5L);
-                        plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, new Runnable() {
-                            @Override
-                            public void run () {
-                                if (plugin.pending.containsKey(playerName)) {
-                                    HashMap<ItemStack, String> thisPending = plugin.pending.get(playerName);
-                                    if (thisPending.equals(pending)) {
-                                        Player runPlayer = plugin.getServer().getPlayer(playerName);
-                                        if (runPlayer != null) {
-                                            runPlayer.sendMessage(ChatColor.RED + "You took too long to specify a quantity. Order Cancelled!");
-                                        }
-                                        plugin.pending.remove(playerName);
-                                    }
-                                }
-                            }
-                        }, 200L);
-                    } else {
-                        final String playerName = player.getName();
-                        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
-                        @Override
-                        public void run() {
-                                Player runPlayer = plugin.getServer().getPlayer(playerName);
-                                runPlayer.closeInventory();
-                                runPlayer.updateInventory();
-                            }
-                        }, 5L);
-                        player.sendMessage(ChatColor.RED + "Sorry! This item may not be available any more!");
-                        player.sendMessage(ChatColor.RED + "Please try again.");
-                    }
-                } else if (event.isShiftClick() && event.isLeftClick()) {
-                    event.setCancelled(true);
-                } else if (slot >= 0 && slot < 54 && event.getCursor() != null) {
+                    completeTrans(player,inv,slot,buyOrders);
+                } else {
                     event.setCancelled(true);
                 }
             } else {
@@ -244,13 +181,12 @@ public class BrokerListener implements Listener {
                         }
                         enchantmentString += "'";
                     }
-                    String priceString;
+                    String priceSplit[];
                     if (seller.equals("ADMIN")) {
-                        priceString = getPrice(inv, slot, "ADMIN");
+                        priceSplit = getPrice(inv, slot, "ADMIN");
                     } else {
-                        priceString = getPrice(inv, slot, player.getName());
+                        priceSplit = getPrice(inv, slot, player.getName());
                     }
-                    String[] priceSplit = priceString.split(":");
                     double price = Double.parseDouble(priceSplit[0]);
                     int perItems = Integer.parseInt(priceSplit[1]);
                     if (!buyOrders) {
@@ -267,21 +203,22 @@ public class BrokerListener implements Listener {
                     for (int i = 0; i < orders.size(); i++) {
                         int orderId = (Integer)orders.get(i).get("id");
                         int quant = (Integer)orders.get(i).get("quant");
-                        totQuant += quant;
                         String buyerName = (String)orders.get(i).get("playerName");
-                        
-                        double thisRefund = quant * price;
-                        if (plugin.taxOnBuyOrders) {
-                            double fee = plugin.calcTax(thisRefund);
-                            thisRefund += fee;
-                            plugin.distributeTax(fee);
-                        }
-                        
-                        if (refunds.containsKey(buyerName)) {
-                            double oldRefund = refunds.get(buyerName);
-                            refunds.put(buyerName, oldRefund + thisRefund);
-                        } else {
-                            refunds.put(buyerName, thisRefund);
+                        if (!buyerName.equalsIgnoreCase("~~ADMIN")) {
+                            totQuant += quant;
+                            double thisRefund = quant * price;
+                            if (plugin.taxOnBuyOrders) {
+                                double fee = plugin.calcTax(thisRefund);
+                                thisRefund += fee;
+                                plugin.distributeTax(fee);
+                            }
+
+                            if (refunds.containsKey(buyerName)) {
+                                double oldRefund = refunds.get(buyerName);
+                                refunds.put(buyerName, oldRefund + thisRefund);
+                            } else {
+                                refunds.put(buyerName, thisRefund);
+                            }
                         }
                         String query = "DELETE FROM BrokerOrders WHERE id = " + orderId;
                         plugin.brokerDb.query(query);
@@ -322,9 +259,7 @@ public class BrokerListener implements Listener {
                             }
                         }
                     }
-                } else if (event.isShiftClick() && event.isLeftClick()) {
-                    event.setCancelled(true);
-                } else if (slot >= 0 && slot < 54 && event.getCursor() != null) {
+                } else {
                     event.setCancelled(true);
                 }
             }
@@ -389,7 +324,7 @@ public class BrokerListener implements Listener {
                                     tot = (Integer)sellOrders.get(i).get("totQuant");
                                 }
                             }
-                            if (quantity > tot) {
+                            if (quantity > tot && !(tot >= 9999)) {
                                 player.sendMessage(ChatColor.RED + "Only " + ChatColor.WHITE + tot + ChatColor.RED + " were available at this price!");
                                 quantity = tot;
                             }
@@ -419,7 +354,14 @@ public class BrokerListener implements Listener {
                                     int playerQuant = (Integer)playerOrders.get(i).get("quant");
                                     allSellers.put(playerName,playerQuant);
                                 }
-                                Object[] sellers = allSellers.keySet().toArray();
+                                // Filter out Admin
+                                List<String> newSellers = new ArrayList<String>();
+                                for (String sellerName : allSellers.keySet()) {
+                                    if (!sellerName.equalsIgnoreCase("~~ADMIN")) {
+                                        newSellers.add(sellerName);
+                                    }
+                                }
+                                String[] sellers = newSellers.toArray(new String[newSellers.size()]);
                                 for (int i = 0; i < sellers.length; i++) {
                                     String sellerName = (String)sellers[i];
                                     int quant = allSellers.get(sellerName);
@@ -562,7 +504,7 @@ public class BrokerListener implements Listener {
             }
             Sign sign = (Sign)block.getState();
             String sellerName = sign.getLine(3);
-            String openString = "<Broker> Main Page";
+            String openString = "<B> Main Page";
             if (sellerName.equals("")) {
                 player.openInventory(plugin.getBrokerInv("0", player, null, false));
             } else {
@@ -576,7 +518,7 @@ public class BrokerListener implements Listener {
                     player.openInventory(plugin.getBrokerInv("0", player, seller.getName(), false));
                 } else if (sellerName.equals("Buy Orders")) {
                     player.openInventory(plugin.getBrokerInv("0", player, "", true));
-                    openString = "<Broker> Sell";
+                    openString = "<B> Sell";
                 } else if (sellerName.equals("Auto Sell")) {
                     // Attempt Auto Sell
                     ItemStack stack = player.getItemInHand();
@@ -715,13 +657,13 @@ public class BrokerListener implements Listener {
             }
             player.openInventory(inv);
             plugin.pending.remove(player.getName());
-            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+            player.sendMessage(ChatColor.GOLD + "<B> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
             event.setCancelled(true);
         } else if (entity instanceof Villager && plugin.brokerVillagers) {
             player.openInventory(plugin.getBrokerInv("0", player, null, false));
             plugin.pending.remove(player.getName());
-            player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
+            player.sendMessage(ChatColor.GOLD + "<B> Main Page");
             player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
             event.setCancelled(true);
         }
@@ -783,9 +725,10 @@ public class BrokerListener implements Listener {
         
     }
     
-    private String getPrice(Inventory inv, int slot, String sellerName) {
+    private String[] getPrice(Inventory inv, int slot, String sellerName) {
         double price = 0.00;
         int perItems = 1;
+        int quant = 0;
         ItemStack stack = inv.getItem(slot);
         String sellerString = "";
         if (sellerName != null && !sellerName.equals("") && !sellerName.equals("ADMIN")) {
@@ -793,26 +736,27 @@ public class BrokerListener implements Listener {
         }
         int orderType = 0;
         String priceOrder = "ASC";
-        String per = "perItems";
         String perGroup = ", perItems";
-        if (inv.getName().equals("<Broker> Sell") || inv.getName().equals("<Broker> Buy Cancel") || inv.getName().equals("<Broker> Buy AdminCancel")) {
+        if (inv.getName().equals("<B> Sell") || inv.getName().equals("<B> Buy Cancel") || inv.getName().equals("<B> Buy AdminCancel")) {
             orderType = 1;
             priceOrder = "DESC";
-            per = "SUM(quant) AS perItems";
             perGroup = "";
         }
-        HashMap<Integer, HashMap<String, Object>> orders = plugin.brokerDb.select("price, " + per, "BrokerOrders", "orderType = " + orderType + sellerString + " AND itemName = '" + stack.getType().name() + "'", "price"+perGroup+", damage, enchantments, meta", "price/perItems "+priceOrder+", damage ASC");
+        HashMap<Integer, HashMap<String, Object>> orders = plugin.brokerDb.select("price, SUM(quant) as quant, perItems", "BrokerOrders", "orderType = " + orderType + sellerString + " AND itemName = '" + stack.getType().name() + "'", "price"+perGroup+", damage, enchantments, meta", "price/perItems "+priceOrder+", damage ASC");
         if (!orders.isEmpty()) {
             int counter = 0;
+            loop:
             for (HashMap<String, Object> order : orders.values()) {
                 if (counter == slot) {
                     price = Double.parseDouble(order.get("price")+"");
                     perItems = Integer.parseInt(order.get("perItems")+"");
+                    quant = Integer.parseInt(order.get("quant")+"");
+                    break loop;
                 }
                 counter++;
             }
         }
-        return price+":"+perItems;
+        return new String[]{price+"",perItems+"",quant+""};
     }
     
     @EventHandler (priority = EventPriority.NORMAL)
@@ -839,6 +783,91 @@ public class BrokerListener implements Listener {
                 }
                 plugin.brokerDb.query("DELETE FROM BrokerPending WHERE id = " + id);
             }
+        }
+    }
+    
+    public void completeTrans(Player player, Inventory inv, int slot, boolean buyOrders) {
+        // Clicked item on sub-page
+        String[] priceSplit = getPrice(inv,slot, null);
+        double price = Double.parseDouble(priceSplit[0]);
+        int quant = Integer.parseInt(priceSplit[2]);
+        if (buyOrders) {
+            player.sendMessage(ChatColor.GOLD + "Sell Price:");
+            player.sendMessage(ChatColor.GOLD + " Max Price Each: " + ChatColor.WHITE + plugin.vault.economy.format(price));
+            player.sendMessage(ChatColor.GOLD + " Max Quant: " + ChatColor.WHITE + quant);
+            player.sendMessage(ChatColor.GOLD + "To sell an item, Try:");
+            player.sendMessage(" /broker sell [price] {Per # Items}!");
+            final String playerName = player.getName();
+            plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    Player runPlayer = plugin.getServer().getPlayer(playerName);
+                    runPlayer.closeInventory();
+                    runPlayer.updateInventory();
+                }
+            }, 5L);
+        } else if (price != 0.00) {
+            int perItems = Integer.parseInt(priceSplit[1]);
+            String each = "each";
+            if (perItems != 1) {
+                each = "for " + perItems;
+            }
+            HashMap<Integer,String> slotPrice = new HashMap<Integer,String>();
+            slotPrice.put(slot,price+":"+perItems);
+            final HashMap<ItemStack,String> pending = new HashMap<ItemStack,String>();
+            ItemStack stack = inv.getItem(slot);
+            pending.put(stack,price+":"+perItems);
+            plugin.pending.put(player.getName(), pending);
+            String enchanted = "";
+            if (!stack.getEnchantments().isEmpty()) {
+                enchanted = " (Enchanted)";
+            }
+            if (plugin.isDamageableItem(stack) && stack.getDurability() != 0) {
+                enchanted += " (Damaged)";
+            }
+            player.sendMessage(ChatColor.GOLD + "/===");
+            player.sendMessage(ChatColor.GOLD + "| Buying: " + ChatColor.WHITE + stack.getType() + enchanted);
+            player.sendMessage(ChatColor.GOLD + "| Buy Price: " + ChatColor.WHITE + plugin.vault.economy.format(price) + " ("+each+")");
+            player.sendMessage(ChatColor.GOLD + "| Enter quantity to buy at this price");
+            player.sendMessage(ChatColor.GOLD + "| " + ChatColor.WHITE +(quant < 9999? quant + " Available" : "Unlimited Supply"));
+            player.sendMessage(ChatColor.GOLD + "| "+ChatColor.GRAY+"(Enter 0 to cancel)");
+            player.sendMessage(ChatColor.GOLD + "\\===");
+            final String playerName = player.getName();
+            plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    Player runPlayer = plugin.getServer().getPlayer(playerName);
+                    runPlayer.closeInventory();
+                    runPlayer.updateInventory();
+                }
+            }, 5L);
+            plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, new Runnable() {
+                @Override
+                public void run () {
+                    if (plugin.pending.containsKey(playerName)) {
+                        HashMap<ItemStack, String> thisPending = plugin.pending.get(playerName);
+                        if (thisPending.equals(pending)) {
+                            Player runPlayer = plugin.getServer().getPlayer(playerName);
+                            if (runPlayer != null) {
+                                runPlayer.sendMessage(ChatColor.RED + "You took too long to specify a quantity. Order Cancelled!");
+                            }
+                            plugin.pending.remove(playerName);
+                        }
+                    }
+                }
+            }, 250L);
+        } else {
+            final String playerName = player.getName();
+            plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+            @Override
+            public void run() {
+                    Player runPlayer = plugin.getServer().getPlayer(playerName);
+                    runPlayer.closeInventory();
+                    runPlayer.updateInventory();
+                }
+            }, 5L);
+            player.sendMessage(ChatColor.RED + "Sorry! This item may not be available any more!");
+            player.sendMessage(ChatColor.RED + "Please try again.");
         }
     }
     

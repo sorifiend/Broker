@@ -143,6 +143,9 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GRAY + " " + Lang.get("CommandMessagePlaceABuyOrder"));
                     sender.sendMessage(ChatColor.GOLD + "/broker buy cancel" + ChatColor.GRAY + ": " + Lang.get("CommandMessageCancelABuyOrder"));
                 }
+                if (sender.hasPermission("broker.commands.buy.adminstore")) {
+                    sender.sendMessage(ChatColor.GOLD + "/broker admin buy [" + Lang.get("CommandMessageItemName") + ":"+Lang.get("ID")+"{:"+Lang.get("CommandMessageData")+"}] ["+Lang.get("CommandMessagePrice")+"]" + ChatColor.GRAY + ": " + Lang.get("CommandMessageAdminBuyOrder"));
+                }
                 if (sender.hasPermission("broker.commands.sell")) {
                     sender.sendMessage(ChatColor.GOLD + "/broker sell" + ChatColor.GRAY + ": " + Lang.get("CommandMessageBrowseOutstanding"));
                     sender.sendMessage(ChatColor.GOLD + "/broker sell ["+Lang.get("CommandMessagePrice")+"] {"+Lang.get("CommandMessagePerItems")+"}");
@@ -150,6 +153,9 @@ public class Broker extends JavaPlugin {
                     sender.sendMessage(ChatColor.GRAY + " "+Lang.get("Optional")+": "+ Lang.get("CommandMessageHowManyItems"));
                     sender.sendMessage(ChatColor.GRAY + " " + Lang.get("CommandMessageSetPriceOrSell"));
                     sender.sendMessage(ChatColor.GOLD + "/broker sell cancel" + ChatColor.GRAY + ": " + Lang.get("CommandMessageCancelASellOrder"));
+                }
+                if (sender.hasPermission("broker.commands.sell.adminstore")) {
+                    sender.sendMessage(ChatColor.GOLD + "/broker admin sell [" + Lang.get("CommandMessageItemName") + ":"+Lang.get("ID")+"{:"+Lang.get("CommandMessageData")+"}] ["+Lang.get("CommandMessagePrice")+"]" + ChatColor.GRAY + ": " + Lang.get("CommandMessageAdminSellOrder"));
                 }
                 return true;
             }
@@ -190,15 +196,24 @@ public class Broker extends JavaPlugin {
                                     player.sendMessage(ChatColor.RED + Lang.get("ErrorNoPerms") + Lang.get("ErrorNoPermsBuyCancelAdmin"));
                                     return true;
                                 }
+                                String adminName = "ADMIN";
+                                if (args.length > 2) {
+                                    OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
+                                    if (target.hasPlayedBefore() || target.isOnline()) {
+                                        adminName += "::" + args[2];
+                                    } else {
+                                        player.sendMessage(ChatColor.RED + Lang.get("Player") + " " + ChatColor.WHITE + args[2] + ChatColor.RED + Lang.get("ErrorNotFound") + "!" );
+                                    }
+                                }
                                 player.sendMessage(ChatColor.GOLD + Lang.get("CommandMessageCancellingBuyOrder"));
-                                player.openInventory(getBrokerInv("0", player, "ADMIN", true));
+                                player.openInventory(getBrokerInv("0", player, adminName, true));
                                 return true;
                             }
                             
                             // Buy From Player
 
                             OfflinePlayer seller = getServer().getOfflinePlayer(args[1]);
-                            if (!seller.hasPlayedBefore()) {
+                            if (!args[1].equalsIgnoreCase("~~ADMIN") && !seller.hasPlayedBefore() && !seller.isOnline()) {
                                 player.sendMessage(ChatColor.RED + Lang.get("Player")+" " + ChatColor.WHITE + args[1] + ChatColor.RED + " "+Lang.get("CommandMessageNotFound"));
                                 player.sendMessage(ChatColor.GRAY + "/broker buy {"+Lang.get("CommandMessagePlayerName")+"}");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy ["+Lang.get("CommandMessageItemName")+"|"+Lang.get("ID")+"{:"+Lang.get("CommandMessageData")+"}] ["+Lang.get("CommandMessageQuantity")+"] ["+Lang.get("CommandMessageMaxPriceEach")+"]");
@@ -215,13 +230,30 @@ public class Broker extends JavaPlugin {
                                 return false;
                             }
 
-                            if (args.length != 4) {
+                            boolean adminstore = false;
+                            if (args[1].equalsIgnoreCase("admin") && !player.hasPermission("broker.commands.buy.adminstore")) {
+                                player.sendMessage(ChatColor.RED + "You do not have permission to place admin Buy Orders!");
+                                return false;
+                            } else if (args[1].equalsIgnoreCase("admin")) {
+                                adminstore = true;
+                            }
+                            
+                            if (args.length < 4) {
                                 player.sendMessage(ChatColor.RED + "Buy Order format incorrect!");
-                                player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                if (adminstore) {
+                                    player.sendMessage(ChatColor.GRAY + "/broker buy admin [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                } else {
+                                    player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
+                                }
                                 return false;
                             }
-
-                            ItemStack item = checkMaterial(args[1]);
+                            
+                            ItemStack item;
+                            if (adminstore) {
+                                item = checkMaterial(args[2]);
+                            } else {
+                                item = checkMaterial(args[1]);
+                            }
                             if (item == null) {
                                 player.sendMessage(ChatColor.RED + "Item Name or ID not recognised!");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
@@ -230,7 +262,11 @@ public class Broker extends JavaPlugin {
                             
                             int quant;
                             try {
-                                quant = Integer.parseInt(args[2]);                                
+                                if (adminstore) {
+                                    quant = Integer.parseInt(args[3]);
+                                } else {
+                                    quant = Integer.parseInt(args[2]);
+                                }
                             } catch (NumberFormatException ex) {
                                 player.sendMessage(ChatColor.RED + "Quantity must be a number!");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
@@ -245,7 +281,11 @@ public class Broker extends JavaPlugin {
                             
                             double price;
                             try {
-                                price = Double.parseDouble(args[3]);
+                                if (adminstore) {
+                                    price = Double.parseDouble(args[4]);
+                                } else {
+                                    price = Double.parseDouble(args[3]);
+                                }
                             } catch (NumberFormatException ex) {
                                 player.sendMessage(ChatColor.RED + "Max Price Each must be a number!");
                                 player.sendMessage(ChatColor.GRAY + "/broker buy [Item Name|ID{:data}] [Quantity] [Max Price Each]");
@@ -278,16 +318,22 @@ public class Broker extends JavaPlugin {
                             }
                             
                             // Add Order
-
-                            String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (1, '" + player.getName() + "', '" + item.getType() + "', '', " + item.getDurability() + ", " + price + ", " + quant + ", " + new Date().getTime() + ", 1, '')";
+                            
+                            String buyerName = player.getName();
+                            if (adminstore) {
+                                buyerName = "~~ADMIN";
+                            }
+                            String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (1, '" + buyerName + "', '" + item.getType() + "', '', " + item.getDurability() + ", " + price + ", " + quant + ", " + new Date().getTime() + ", 1, '')";
                             brokerDb.query(query);
                             player.sendMessage(ChatColor.GOLD  + "Buy Order for "+item.getType()+" placed!");
-                            vault.economy.withdrawPlayer(player.getName(), totPrice + fee);
-                            distributeTax(fee);
-                            if (fee != 0) {
-                                player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice + fee) + " (including fee of "+vault.economy.format(fee)+")");
-                            } else {
-                                player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice));
+                            if (!adminstore) {
+                                vault.economy.withdrawPlayer(player.getName(), totPrice + fee);
+                                distributeTax(fee);
+                                if (fee != 0) {
+                                    player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice + fee) + " (including fee of "+vault.economy.format(fee)+")");
+                                } else {
+                                    player.sendMessage(ChatColor.GOLD  + "Funds Witheld: "+vault.economy.format(totPrice));
+                                }
                             }
                             
                             matchBuyOrders();
@@ -300,8 +346,6 @@ public class Broker extends JavaPlugin {
                         player.openInventory(getBrokerInv("0", player, null, false));
                     }
                     pending.remove(player.getName());
-                    player.sendMessage(ChatColor.GOLD + "<BROKER> Main Page");
-                    player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
                     return true;
                 } else if (args[0].equalsIgnoreCase("sell")) {
                     if (!sender.hasPermission("broker.commands.sell")) {
@@ -314,15 +358,13 @@ public class Broker extends JavaPlugin {
                             sender.sendMessage(ChatColor.RED + "You do not have permission to open Buy Orders on command!");
                             return false;
                         }
-                        player.sendMessage(ChatColor.GOLD + "<BROKER> Sell");
-                        player.sendMessage(ChatColor.GOLD + "Choose an Item Type");
                         player.openInventory(getBrokerInv("0", player, null, true));
                         return true;
                     } else if (args.length >= 2) {
                         if (args[1] != null && args[1].equalsIgnoreCase("cancel")) {
                             if (!player.hasPermission("broker.commands.sell.cancel")) {
                                 player.sendMessage(ChatColor.RED + "You do not have permission to cancel orders!");
-                                return true;
+                                return false;
                             }
                             player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
                             player.openInventory(getBrokerInv("0", player, player.getName(), false));
@@ -331,13 +373,35 @@ public class Broker extends JavaPlugin {
                         if (args[1] != null && args[1].equalsIgnoreCase("admincancel")) {
                             if (!player.hasPermission("broker.commands.sell.admincancel")) {
                                 player.sendMessage(ChatColor.RED + "You do not have permission to cancel orders as an admin!");
-                                return true;
+                                return false;
                             }
                             player.sendMessage(ChatColor.GOLD + "Cancelling Sell Orders");
-                            player.openInventory(getBrokerInv("0", player, "ADMIN", false));
+                            String adminName = "ADMIN";
+                            if (args.length > 2) {
+                                OfflinePlayer target = Bukkit.getOfflinePlayer(args[2]);
+                                if (target.hasPlayedBefore() || target.isOnline()) {
+                                    adminName += "::" + args[2];
+                                } else {
+                                    player.sendMessage(ChatColor.RED + Lang.get("Player") + " " + ChatColor.WHITE + args[2] + ChatColor.RED + Lang.get("ErrorNotFound") + "!" );
+                                }
+                            }
+                            player.openInventory(getBrokerInv("0", player, adminName, false));
                             return true;
                         }
-                        if ((player.hasPermission("broker.vip") && vipMaxOrders != 0 && sellOrderCount(player.getName()) >= vipMaxOrders) || (!player.hasPermission("broker.vip") && maxOrders != 0 && sellOrderCount(player.getName()) >= maxOrders)) {
+                        boolean adminstore = false;
+                        if (args[1] != null && args[1].equalsIgnoreCase("admin")) {
+                            if (!player.hasPermission("broker.commands.sell.adminstore")) {
+                                player.sendMessage(ChatColor.RED + "You do not have permission to list admin sell orders!");
+                                return false;
+                            }
+                            if (args.length < 3) {
+                                player.sendMessage(ChatColor.RED + "You must specify a selling price!");
+                                player.sendMessage(ChatColor.RED + "/broker sell admin [price] {per # items}");
+                                return false;
+                            }
+                            adminstore = true;
+                        }
+                        if (!adminstore && (player.hasPermission("broker.vip") && vipMaxOrders != 0 && sellOrderCount(player.getName()) >= vipMaxOrders) || (!player.hasPermission("broker.vip") && maxOrders != 0 && sellOrderCount(player.getName()) >= maxOrders)) {
                             sender.sendMessage(ChatColor.RED + "You may only place a maximum of " + ChatColor.WHITE + vipMaxOrders + ChatColor.RED + " sale orders!");
                             return false;
                         }
@@ -347,22 +411,48 @@ public class Broker extends JavaPlugin {
                         }
                         double price;
                         try {
-                            price = Double.parseDouble(args[1]);
+                            if (adminstore) {
+                                price = Double.parseDouble(args[2]);
+                            } else {
+                                price = Double.parseDouble(args[1]);
+                            }
                         } catch (NumberFormatException nfe) {
                             sender.sendMessage(ChatColor.RED + "Sale price must be a number!");
-                            sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
+                            if (adminstore) {
+                                sender.sendMessage(ChatColor.RED + "/broker sell admin [price] {Per # Items}");
+                            } else {
+                                sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
+                            }
                             return false;
                         }
-
+                        
+                        if (price <=0) {
+                            sender.sendMessage(ChatColor.RED + "Sale price cannot be 0!");
+                            if (adminstore) {
+                                sender.sendMessage(ChatColor.RED + "/broker sell admin [price] {Per # Items}");
+                            } else {
+                                sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
+                            }
+                            return false;
+                        }
+                        
                         int perItems = 1;
                         String each = "each";
-                        if (args.length > 2) {
+                        if ((!adminstore && args.length > 2) || (adminstore && args.length > 3)) {
                             try {
-                                perItems = Integer.parseInt(args[2]);
+                                if (adminstore) {
+                                    perItems = Integer.parseInt(args[3]);
+                                } else {
+                                    perItems = Integer.parseInt(args[2]);
+                                }
                                 each = "per " + perItems + " items";
                             } catch (NumberFormatException nfe) {
                                 sender.sendMessage(ChatColor.RED + "Per # Items must be a whole number!");
-                                sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
+                                if (adminstore) {
+                                    sender.sendMessage(ChatColor.RED + "/broker sell admin [price] {Per # Items}");
+                                } else {
+                                    sender.sendMessage(ChatColor.RED + "/broker sell [price] {Per # Items}");
+                                }
                                 return false;
                             }
                         }
@@ -371,7 +461,12 @@ public class Broker extends JavaPlugin {
                         }
 
                         // List item for sale
-                        int quant = (int) (itemInHand.getAmount() / perItems) * perItems;
+                        int quant;
+                        if (adminstore) {
+                            quant = 9999;
+                        } else {
+                            quant = (int) (itemInHand.getAmount() / perItems) * perItems;
+                        }
                         String itemName = itemInHand.getType().name();
                         String itemDisplayName = itemName;
                         short damage = itemInHand.getDurability();
@@ -399,16 +494,20 @@ public class Broker extends JavaPlugin {
                         if (isDamageableItem(itemInHand) && damage != 0) {
                             itemDisplayName += "(Used)";
                         }
-
-                        String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (0, '" + player.getName() + "', '" + itemName + "', '" + enchantmentString + "', " + damage + ", " + price + ", " + quant + ", " + new Date().getTime() + ", " + perItems + ", '" + meta + "')";
-                        brokerDb.query(query);
-
-                        if (itemInHand.getAmount() > quant) {
-                            player.getItemInHand().setAmount(player.getItemInHand().getAmount() - quant);
+                        
+                        String sellerName = player.getName();
+                        if (adminstore) {
+                            sellerName = "~~ADMIN";
                         } else {
-                            player.setItemInHand(null);
+                            if (itemInHand.getAmount() > quant) {
+                                player.getItemInHand().setAmount(player.getItemInHand().getAmount() - quant);
+                            } else {
+                                player.setItemInHand(null);
+                            }
                         }
-                        player.sendMessage(quant + " x " + itemDisplayName);
+                        String query = "INSERT INTO BrokerOrders (orderType, playerName, itemName, enchantments, damage, price, quant, timeCode, perItems, meta) VALUES (0, '" + sellerName + "', '" + itemName + "', '" + enchantmentString + "', " + damage + ", " + price + ", " + quant + ", " + new Date().getTime() + ", " + perItems + ", '" + meta + "')";
+                        brokerDb.query(query);
+                        player.sendMessage((quant == 0? "" : quant + " x ") + itemDisplayName);
                         player.sendMessage(ChatColor.GOLD + " listed for sale for " + ChatColor.GREEN + vault.economy.format(price) + ChatColor.GOLD + " " + each + "!");
                         
                         matchBuyOrders();
@@ -438,25 +537,30 @@ public class Broker extends JavaPlugin {
             buyOrders = 1;
             priceOrder = "DESC";
             if (seller.equals(buyer.getName())) {
-                inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy Cancel");
-            } else if (seller.equals("ADMIN")) {
-                inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy AdminCancel");
+                inv = Bukkit.createInventory(buyer, 54, "<B> Buy Cancel");
+            } else if (seller.startsWith("ADMIN")) {
+                inv = Bukkit.createInventory(buyer, 54, "<B> Buy AdminCancel");
             } else {
-                inv = Bukkit.createInventory(buyer, 54, "<Broker> Sell");
+                inv = Bukkit.createInventory(buyer, 54, "<B> Sell");
             }
         } else if (seller.equals("")) {
-            inv = Bukkit.createInventory(buyer, 54, "<Broker> Buy");
+            inv = Bukkit.createInventory(buyer, 54, "<B> Buy");
         } else if (seller.equalsIgnoreCase(buyer.getName())) {
-            inv = Bukkit.createInventory(buyer, 54, "<Broker> Sell Cancel");
-        } else if (seller.equals("ADMIN")) {
-            inv = Bukkit.createInventory(buyer, 54, "<Broker> Sell AdminCancel");
+            inv = Bukkit.createInventory(buyer, 54, "<B> Sell Cancel");
+        } else if (seller.startsWith("ADMIN")) {
+            inv = Bukkit.createInventory(buyer, 54, "<B> Sell AdminCancel");
         } else {
-            inv = Bukkit.createInventory(buyer, 54, "<Broker> " + seller);
+            inv = Bukkit.createInventory(buyer, 54, "<B> " + seller);
         }
         
         inv.setMaxStackSize(64);
         for (int i = 45; i < 54; i++) {
-            inv.setItem(i, new ItemStack(Material.ENDER_PORTAL));
+            ItemStack map = new ItemStack(Material.EMPTY_MAP);
+            ItemMeta meta = map.getItemMeta();
+            meta.setDisplayName("No More Pages");
+            map.setItemMeta(meta);
+            inv.setItem(i, map);
+            
         }
         int pageNo;
         boolean mainPage;
@@ -477,7 +581,7 @@ public class Broker extends JavaPlugin {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders, "price, perItems, damage, enchantments, meta", "price/perItems "+priceOrder+", damage ASC");
                 } else {
                     if (seller.equals("ADMIN")) {
-                        sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders, "price, perItems, damage, enchantments,meta", "price/perItems "+priceOrder+", damage ASC");
+                        sellOrders = brokerDb.select("playerName, itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders, "price, perItems, damage, enchantments,meta,playerName", "price/perItems "+priceOrder+", damage ASC");
                     } else {
                         sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders, "price, perItems, damage, enchantments,meta", "price/perItems "+priceOrder+", damage ASC");
                     }
@@ -487,7 +591,7 @@ public class Broker extends JavaPlugin {
                     sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders+" AND damage = " + subSplit[1], "price, perItems, damage, enchantments,meta", "price/perItems "+priceOrder+", damage ASC");
                 } else {
                     if (seller.equals("ADMIN")) {
-                        sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders+" AND damage = " + subSplit[1], "price, perItems, damage, enchantments,meta", "price/perItems "+priceOrder+", damage ASC");
+                        sellOrders = brokerDb.select("playerName, itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders+" AND damage = " + subSplit[1], "price, perItems, damage, enchantments,meta,playerName", "price/perItems "+priceOrder+", damage ASC");
                     } else {
                         sellOrders = brokerDb.select("itemName, enchantments, damage, SUM(quant) as totquant, price, meta", "BrokerOrders", "playerName = '" + seller + "' AND itemName = '" + subSplit[0] + "' AND orderType = "+buyOrders+" AND damage = " + subSplit[1], "price, perItems, damage, enchantments,meta", "price/perItems "+priceOrder+", damage ASC");
                     }
@@ -516,7 +620,11 @@ public class Broker extends JavaPlugin {
                         inv.setItem(added, stack);
                         added++;
                     }
-                    inv.setItem(45, new ItemStack(Material.BOOK));
+                    ItemStack book = new ItemStack(Material.BOOK);
+                    ItemMeta bookmeta = book.getItemMeta();
+                    bookmeta.setDisplayName("Back to previous page");
+                    book.setItemMeta(bookmeta);
+                    inv.setItem(45, book);
                     if (rows > 45) {
                         int pageCount = 0;
                         while (rows > 0) {
@@ -525,7 +633,11 @@ public class Broker extends JavaPlugin {
                         }
                         for (int j = 1; j < pageCount; j++) {
                             if (j < 8) {
-                                inv.setItem(j + 45, new ItemStack(Material.PAPER));
+                                ItemStack paper = new ItemStack(Material.PAPER);
+                                ItemMeta papermeta = book.getItemMeta();
+                                papermeta.setDisplayName("Page " + j);
+                                paper.setItemMeta(papermeta);
+                                inv.setItem(j + 45, paper);
                             }
                         }
                     }
@@ -538,7 +650,7 @@ public class Broker extends JavaPlugin {
                 sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = "+buyOrders, "itemName, damage", "itemName, damage ASC");
             } else {
                 if (seller.equals("ADMIN")) {
-                    sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "orderType = "+buyOrders, "itemName, damage", "itemName, damage ASC");
+                    sellOrders = brokerDb.select("playerName, itemName, damage", "BrokerOrders", "orderType = "+buyOrders, "itemName, damage,playerName", "itemName, damage ASC");
                 } else {
                     sellOrders = brokerDb.select("itemName, damage", "BrokerOrders", "playerName = '" + seller + "' AND orderType = "+buyOrders, "itemName, damage", "itemName, damage ASC");
                 }
@@ -855,7 +967,7 @@ public class Broker extends JavaPlugin {
                     }
                 }
                 
-                if (thisSale != 0) {
+                if (thisSale != 0 && !sellerName.equalsIgnoreCase("~~ADMIN")) {
                     if (thisSale == squant) {
                         brokerDb.query("DELETE FROM BrokerOrders WHERE id = " + sid);
                     } else {

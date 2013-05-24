@@ -24,6 +24,8 @@ permissions:
     children:
       broker.commands.buy.admincancel: true
       broker.commands.sell.admincancel: true
+      broker.commands.buy.adminstore: true
+      broker.commands.sell.adminstore: true
   broker.use:
     description: Can use the broker
   broker.commands.*:
@@ -33,6 +35,8 @@ permissions:
       broker.commands.buy.*: true
       broker.commands.buy.admincancel: true
       broker.commands.sell.admincancel: true
+      broker.commands.buy.adminstore: true
+      broker.commands.sell.adminstore: true
   broker.commands.sell.*:
     description: Can use all /broker sell commands
     children:
@@ -57,10 +61,14 @@ permissions:
     description: Can use /broker buy cancel
   broker.commands.buy.admincancel:
     description: Can use /broker buy admincancel
+  broker.commands.buy.adminstore:
+    description: Can use /broker admin buy
   broker.commands.sell.cancel:
     description: Can use /broker sell cancel
   broker.commands.sell.admincancel:
     description: Can use /broker sell admincancel
+  broker.commands.sell.adminstore:
+    description: Can use /broker admin sell
   broker.sign.*:
     description: Can create all Broker signs
     children:
