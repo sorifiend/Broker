@@ -351,6 +351,14 @@ public class Broker extends JavaPlugin {
                     if (!sender.hasPermission("broker.commands.sell")) {
                         sender.sendMessage(ChatColor.RED + "You do not have permission to use the sell command!");
                         return false;
+                    }  
+                    
+                    GameMode current_GameMode = player.getGameMode();
+                    // sender.sendMessage(ChatColor.RED + "Current Gamemode: " + current);
+                    
+                    if (current_GameMode == GameMode.CREATIVE) {
+                        sender.sendMessage(ChatColor.RED + "Don't use /broker sell in Creative-Mode (Cheeatah!)");                        
+                        return false;
                     }
                     ItemStack itemInHand = player.getItemInHand();
                     if (args.length == 1) {
