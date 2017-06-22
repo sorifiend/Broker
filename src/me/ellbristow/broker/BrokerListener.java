@@ -487,8 +487,8 @@ public class BrokerListener implements Listener {
         Action action = event.getAction();
         Player player = event.getPlayer();
         Block block = event.getClickedBlock();
-        if (action.equals(Action.RIGHT_CLICK_AIR) && player.getItemInHand().getTypeId() < 256) {
-            block = player.getTargetBlock(null, 5);
+        if (action.equals(Action.RIGHT_CLICK_AIR) && player.getInventory().getItemInMainHand().getTypeId() < 256) {
+            block = player.getTargetBlock((Set<Material>) null, 5);
             if (block != null && (block.getType().equals(Material.WALL_SIGN) || block.getType().equals(Material.SIGN_POST))) {
                 action = Action.RIGHT_CLICK_BLOCK;
             }
