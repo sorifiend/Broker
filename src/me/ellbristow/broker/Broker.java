@@ -357,7 +357,7 @@ public class Broker extends JavaPlugin {
                     // sender.sendMessage(ChatColor.RED + "Current Gamemode: " + current);
                     
                     if (current_GameMode == GameMode.CREATIVE) {
-                        sender.sendMessage(ChatColor.RED + "Don't use /broker sell in Creative-Mode (Cheeatah!)");                        
+                        sender.sendMessage(ChatColor.RED + "You cannot use the sell command in creative mMode");                        
                         return false;
                     }
                     ItemStack itemInHand = player.getItemInHand();
