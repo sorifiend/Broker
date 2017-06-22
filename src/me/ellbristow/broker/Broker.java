@@ -790,7 +790,7 @@ public class Broker extends JavaPlugin {
             getLogger().info("Loading defaults for Item Aliases!");
             InputStream defConfigStream = this.getResource("itemNames.yml");
             if (defConfigStream != null) {
-                YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+                YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defConfigStream));
                 
                 aliasConfig.setDefaults(defConfig);
                 for (String key : defConfig.getKeys(false)) {
